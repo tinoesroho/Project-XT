@@ -108,7 +108,11 @@ void input_lost() // Engine callback
 
     // GUI handler
     GUI_EngineCallback_InputLost();
-
+	
+	if (__ GmapWait && __GmapActive) 
+	{ 
+		PlaySound ( "BIGWIN1.ACM"); 
+	}
     // Pressed keys
     HandlePressedKeys();
 }
