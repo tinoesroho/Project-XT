@@ -1,0 +1,4614 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+
+shared class Sprite
+{
+	void Load(string&name,int path=(0))
+	{
+		if(name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	}
+	
+	void Load(uint nameHash)
+	{
+		if(nameHash==LoadedNameHash)
+		return;
+		LoadedNameHash=nameHash;
+		
+		Id=LoadSprite(nameHash);
+		RefreshData();
+	}
+	
+	void LoadByIni(string&iniKey,int path)
+	{
+		string@name=GetIfaceIniStr(iniKey);
+		if(@name!=null&&name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	} 
+	
+	void Draw(int x,int y,int w=0,int h=0,int cornerX=-1,int cornerY=-1)
+	{
+		if(Id==0||Hidden)
+		return;
+		
+		if(w==0)
+		w=Width;
+		if(h==0)
+		h=Height;
+		
+		if(AnimPlay)
+		{
+			uint ticksPerFrame=Ticks/FrmCount;
+			int framesPassed=(GetTick()-AnimStartTick)/ticksPerFrame;
+			if(framesPassed>0)
+			{
+				AnimStartTick+=framesPassed*ticksPerFrame;
+				Frame+=(AnimReverse?-framesPassed:framesPassed);
+				
+				bool endAnim=false;
+				if(Frame<=0)
+				{
+					endAnim=true;
+					AnimStartTick-=-Frame*ticksPerFrame;
+					Frame=0;
+				}
+				else if(Frame>=int(FrmCount)-1)
+				{
+					endAnim=true;
+					AnimStartTick-=(Frame+1-FrmCount)*ticksPerFrame;
+					Frame=FrmCount-1;
+				}
+				
+				if(endAnim)
+				{
+					if(AnimLoop)
+					Frame=(AnimReverse?int(FrmCount)-1:0);
+					else
+					AnimPlay=false;
+				}
+			}
+		}
+		
+		if(cornerX==0)
+		x-=w/2;
+		else if(cornerX==1)
+		x-=w;
+		if(cornerY==0)
+		y-=h/2;
+		else if(cornerY==1)
+		y-=h;
+		
+		switch(Layout)
+		{
+			case(1):
+			DrawSpritePattern(Id,Frame,x,y,w,h,Width,Height);
+			break;
+			case(2):
+			DrawSprite(Id,Frame,x+w/2-Width/2,y+h/2-Height/2);
+			break;
+			case(3):
+			DrawSprite(Id,Frame,x,y,w,h);
+			break;
+			case(4):
+			DrawSprite(Id,Frame,x,y,w,h,true);
+			break;
+			default:
+			DrawSprite(Id,Frame,x,y);
+			break;
+		}
+	}
+	
+	void SetFrame(int index)
+	{
+		Frame=index;
+		AnimPlay=false;
+	}
+	
+	void SetFirstFrame()
+	{
+		SetFrame(0);
+	}
+	
+	void SetLastFrame()
+	{
+		SetFrame(int(FrmCount)-1);
+	}
+	
+	void PlayAnimation(bool loop=true,bool reverse=false)
+	{
+		if(Id==0)
+		return;
+		if(AnimPlay&&AnimLoop==loop&&AnimReverse==reverse)
+		return;
+		
+		AnimPlay=true;
+		AnimLoop=loop;
+		AnimReverse=reverse;
+		AnimStartTick=GetTick();
+	}
+	
+	private void RefreshData()
+	{
+		if(Id!=0)
+		{
+			Width=GetSpriteWidth(Id,0);
+			Height=GetSpriteHeight(Id,0);
+			FrmCount=GetSpriteCount(Id);
+			Ticks=GetSpriteTicks(Id);
+		}
+		else
+		{
+			Width=0;
+			Height=0;
+			FrmCount=0;
+			Ticks=0;
+		}
+	}
+	
+	uint Id;
+	int Frame=-1;
+	int Layout=(0);
+	int Width;
+	int Height;
+	uint FrmCount;
+	uint Ticks;
+	bool AnimPlay;
+	bool AnimLoop;
+	bool AnimReverse;
+	uint AnimStartTick;
+	bool Hidden;
+	uint LoadedNameHash;
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+
+shared class Serializator
+{
+	uint8[]Array;
+	uint CurPos;
+	uint BufSize;
+	uint DataSize;
+	
+	Serializator()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator(uint approxSize)
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+		GrowBuffer(approxSize);
+	}
+	
+	void GrowBuffer(uint size)
+	{
+		if(size<=BufSize)
+		return;
+		if(BufSize==0)
+		BufSize=1;
+		while(size>BufSize)
+		BufSize*=2;
+		Array.resize(BufSize);
+	}
+	
+	bool Save(string&name)
+	{
+		if(DataSize==0)
+		return false;   
+		
+		SetCacheData(name,Array,DataSize);
+		bool result=true;
+		
+		Clear();
+		return result;
+	}
+	
+	bool Load(string&name)
+	{
+		Clear();    
+		
+		if(not GetCacheData(name,Array))
+		return false;
+		
+		BufSize=Array.length();
+		DataSize=BufSize;
+		return true;
+	}
+	
+	void Clear()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator&SetCurPos(uint pos)
+	{
+		GrowBuffer(pos);
+		CurPos=pos;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Fill(uint8 value,uint length)
+	{
+		GrowBuffer(CurPos+length);
+		for(uint i=0;i<length;i++)
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value?1:0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string&value)
+	{
+		uint len=value.rawLength();
+		GrowBuffer(CurPos+len+1);
+		for(uint i=0;i<len;i++)
+		Array[CurPos++]=value.rawGet(i);
+		Array[CurPos++]=0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		for(uint i=0,j=valuesLen;i<j;i++)
+		len+=values[i].length();
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}                            
+	
+	Serializator&Get(int64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(bool&value)
+	{
+		value=false;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++]==1?true:false;
+		return this;
+	}
+	
+	Serializator&Get(string&str)
+	{
+		uint len=0;
+		for(uint i=CurPos;;i++)
+		{
+			if(i==DataSize)
+			{
+				str="";
+				return this;
+			}
+			if(Array[i]==0)
+			{
+				len=i-CurPos;
+				break;
+			}
+		}
+		str.rawResize(len);
+		for(uint i=0;i<len;i++)
+		str.rawSet(i,Array[CurPos++]);
+		CurPos++;
+		return this;
+	}
+	
+	Serializator&Get(int64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(bool[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(string[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}                             
+	
+};   
+
+funcdef bool DragAndDropHandler(GUIObject&obj,GUIObject@target);  
+
+import void GUI_RegisterScreen(int screenIndex,GUIScreen&screen)from"gui";
+import GUIScreen@GUI_GetScreen(int screenIndex)from"gui";
+import GUIScreen@GUI_GetActiveMainScreen()from"gui";
+import GUIScreen@GUI_GetActiveScreen()from"gui";
+import void GUI_GetActiveScreens(GUIScreen@[]&result)from"gui";
+import GUIObject@GUI_GetFocusedObject()from"gui";
+import void GUI_SetFocusedObject(GUIObject@obj)from"gui";
+import GUIObject@GUI_GetPressedObject()from"gui";
+import GUIObject@GUI_GetDraggedObject()from"gui";
+import GUIObject@GUI_GetHoveredObject()from"gui";
+import void GUI_NextTextInput()from"gui";
+import void GUI_CollectMessageBoxes(GUIMessageBox@[]&messageBoxes)from"gui";
+import bool GUI_IsConsoleActive()from"gui";
+import void GUI_AddDragAndDropHandler(DragAndDropHandler@handler)from"gui"; 
+
+import void GUI_EngineCallback_Start()from"gui";
+import void GUI_EngineCallback_ShowScreen(int screenIndex,dictionary@params)from"gui";
+import void GUI_EngineCallback_HideScreen(int screenIndex)from"gui";
+import void GUI_EngineCallback_Draw(bool mainScreen)from"gui";
+import void GUI_EngineCallback_DrawCursor()from"gui";
+import void GUI_EngineCallback_MouseDown(int button)from"gui";
+import void GUI_EngineCallback_MouseUp(int button)from"gui";
+import void GUI_EngineCallback_MouseMove()from"gui";
+import void GUI_EngineCallback_KeyDown(uint8 key,string@text)from"gui";
+import void GUI_EngineCallback_KeyUp(uint8 key)from"gui";
+import void GUI_EngineCallback_InputLost()from"gui";
+import void GUI_EngineCallback_Loop()from"gui";
+import void GUI_EngineCallback_GetActiveScreens(int[]&result)from"gui";
+import void GUI_EngineCallback_ItemChanged(bool onMap)from"gui";
+import bool GUI_EngineCallback_CheckInterfaceHit(int x,int y)from"gui";
+import void GUI_Callback_OnResolutionChanged()from"gui";
+import void GUI_Callback_OnLanguageChanged()from"gui";                                                                                                                                                                                                                    
+
+shared class GUIObject
+{
+	bool get_Active()final{return _ActiveSelf&&(_Parent!is null?_Parent.Active:true);}
+	bool get_ActiveSelf()final{return _ActiveSelf;}
+	string@get_Name()final{return _Name;}
+	int get_PosX()final{return _Parent!is null?_AbsolutePosX-_Parent._AbsolutePosX:_AbsolutePosX;}
+	int get_PosY()final{return _Parent!is null?_AbsolutePosY-_Parent._AbsolutePosY:_AbsolutePosY;}
+	int get_AbsolutePosX()final{return _AbsolutePosX;}
+	int get_AbsolutePosY()final{return _AbsolutePosY;}
+	int get_Width()final{return _Width;}
+	int get_Height()final{return _Height;}
+	int get_Anchor()final{return _Anchor;}
+	int get_Dock()final{return _Dock;}
+	bool get_IsDraggable()final{return _IsDraggable;}
+	bool get_IsNotHittable()final{return _IsNotHittable;}
+	bool get_CheckTransparentOnHit()final{return _CheckTransparentOnHit;}
+	bool get_IsFocused()final{return _IsFocused;}
+	bool get_IsPressed()final{return _IsPressed;}
+	bool get_IsHovered()final{return _IsHovered;}
+	bool get_IsDragged()final{return _IsDragged||(_Parent!is null&&_Parent.IsDragged);}
+	uint get_ChildCount()final{return _Children.length();}
+	GUIObject@get_Parent()final{return _Parent;}
+	GUIScreen@get_Screen()final{return _Parent!is null?_Parent.Screen:cast<GUIScreen>(this);}
+	GUIGrid@get_Grid()final{return _Grid;}
+	uint get_CellIndex()final{return _CellIndex;}
+	
+	bool _ActiveSelf;
+	string@_Name;
+	int _BasePosX;
+	int _BasePosY;
+	int _BaseWidth;
+	int _BaseHeight;
+	int _AbsolutePosX;
+	int _AbsolutePosY;
+	int _Width;
+	int _Height;
+	int _Anchor;
+	int _Dock;
+	bool _IsDragged;
+	bool _IsDraggable;
+	bool _IsNotHittable;
+	bool _CheckTransparentOnHit;
+	bool _DeferredMousePressed;
+	bool _IsFocused;
+	bool _IsPressed;
+	bool _IsHovered;
+	int _PressedButton;
+	int _PressedX;
+	int _PressedY;
+	uint _PressedRepeatTime;
+	GUIObject@_Parent;
+	GUIObject@[]_Children;
+	GUIGrid@_Grid;
+	uint _CellIndex; 
+	
+	void OnConstruct(){}
+	void OnInit(){}
+	void OnShow(){}
+	void OnShow(dictionary@params){}
+	void OnHide(){}
+	void OnAppear(){}
+	void OnAppear(dictionary@params){}
+	void OnDisappear(){}
+	void OnRemove(){}
+	void OnDraw(){}
+	void OnMove(int deltaX,int deltaY){}
+	void OnMouseDown(int button){}
+	void OnMouseUp(int button,bool lost){}
+	void OnMousePressed(int button){}
+	void OnLMousePressed(){}
+	void OnRMousePressed(){}
+	void OnMouseClick(int button){}
+	void OnLMouseClick(){}
+	void OnRMouseClick(){}
+	void OnMouseMove(){}
+	void OnGlobalMouseDown(int button){}
+	void OnGlobalMouseUp(int button){}
+	void OnGlobalMousePressed(int button){}
+	void OnGlobalMouseClick(int button){}
+	void OnGlobalMouseMove(){}
+	void OnInput(){}
+	void OnInput(uint8 key){}
+	void OnInput(string&text){}
+	void OnInput(uint8 key,string@text){}
+	void OnGlobalInput(uint8 key,string@text){}
+	void OnActiveChanged(){}
+	void OnFocusChanged(){}
+	void OnHoverChanged(){}
+	void OnDragChanged(){}
+	void OnResizeGrid(GUIObject@cell,uint cellIndex){}
+	void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex){}
+	
+	void Init(GUIObject@parent)
+	{
+		_ActiveSelf=true;
+		@_Name=reflection::typeof<GUIObject>(this).nameWithoutNamespace;
+		
+		if(_Parent!is null)
+		_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+		@_Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(this);
+		
+		_Construct();
+		
+		GUIScreen@screen=Screen;
+		if(screen!is null&&screen._IsRegistered)
+		_Init();
+		
+		_RefreshPosition();
+	}
+	
+	void _Construct()
+	{
+		OnConstruct();
+	}
+	
+	void _Init()
+	{
+		OnInit();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Init();
+	}
+	
+	void _Show(dictionary@params)
+	{
+		OnShow();
+		OnShow(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Show(params);
+	}
+	
+	void _Hide()
+	{
+		OnHide();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Hide();
+	}
+	
+	void _Appear(dictionary@params)
+	{
+		OnAppear();
+		OnAppear(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Appear(params);
+	}
+	
+	void _Disappear()
+	{
+		OnDisappear();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Disappear();
+	}
+	
+	void Remove()
+	{
+		if(_Parent!is null)
+		{
+			_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+			@_Parent=null;
+		}
+		
+		_Remove();
+		
+		_ActiveSelf=false;
+	}
+	
+	void _Remove()
+	{
+		OnRemove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Remove();
+	}
+	
+	void _Reload(bool reconstruct,bool refreshPosition)
+	{
+		if(reconstruct)
+		OnConstruct();
+		if(refreshPosition)
+		_RefreshPosition();
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Reload(reconstruct,refreshPosition);
+	}
+	
+	void _DrawCallback()
+	{
+		
+		if(_Grid!is null)
+		{
+			GUIItemView@itemView=cast<GUIItemView>(_Grid);
+			if(itemView!is null)
+			OnDrawItem(itemView.GetItem(_CellIndex),this,_CellIndex);
+		} 
+		
+		OnDraw();
+	}
+	
+	void _Draw(bool callCallback)
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._ActiveSelf&&!child._IsDragged)
+			child._Draw(true);
+		}
+	}
+	
+	void Draw(int x,int y)
+	{
+		int dx=x-_AbsolutePosX;
+		int dy=y-_AbsolutePosY;
+		_Move(dx,dy,false,false);
+		_Draw(true);
+		_Move(-dx,-dy,false,false);
+	}
+	
+	void Move(int deltaX,int deltaY)
+	{
+		_Move(deltaX,deltaY,true,true);
+	}
+	
+	void _Move(int deltaX,int deltaY,bool callCallback,bool moveBasePos)
+	{
+		_AbsolutePosX+=deltaX;
+		_AbsolutePosY+=deltaY;
+		
+		if(moveBasePos)
+		{
+			_BasePosX+=deltaX;
+			_BasePosY+=deltaY;
+		}
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Move(deltaX,deltaY,false,false);
+		
+		if(callCallback)
+		_MoveCallback(deltaX,deltaY);
+	}
+	
+	void _MoveCallback(int deltaX,int deltaY)
+	{
+		OnMove(deltaX,deltaY);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._MoveCallback(deltaX,deltaY);
+	}
+	
+	bool _IsHitch()
+	{
+		bool result=(!_IsDraggable&&cast<GUIPanel>(this)!is null&&cast<GUIButton>(this)is null&&cast<GUIGrid>(this)is null);
+		return result&&(Parent!is null?Parent._IsHitch():true);
+	}
+	
+	GUIObject@FindMouseHit()
+	{
+		return FindHit(__MouseX,__MouseY);
+	}
+	
+	GUIObject@FindHit(int x,int y)
+	{
+		
+		for(int i=int(_Children.length())-1;i>=0;i--)
+		{
+			GUIObject@obj=_Children[i].FindHit(x,y);
+			if(obj!is null)
+			return obj;
+		} 
+		
+		if(IsHit(x,y))
+		return this; 
+		
+		return null;
+	}
+	
+	bool IsMouseHit()
+	{
+		return IsHit(__MouseX,__MouseY);
+	}
+	
+	bool IsHit(int x,int y)
+	{
+		return Active&&!_IsNotHittable&&_Width>0&&_Height>0&&((x)>=(_AbsolutePosX)&&(x)<(_AbsolutePosX)+(_Width)&&(y)>=(_AbsolutePosY)&&(y)<(_AbsolutePosY)+(_Height));
+	}
+	
+	void _GetWholeSizeRect(int[]&rect)
+	{
+		int l=_AbsolutePosX;
+		int t=_AbsolutePosY;
+		int r=l+Width;
+		int b=t+Height;
+		
+		if(l<rect[0])
+		rect[0]=l;
+		if(t<rect[1])
+		rect[1]=t;
+		if(r>rect[2])
+		rect[2]=r;
+		if(b>rect[3])
+		rect[3]=b;
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GetWholeSizeRect(rect);
+	}
+	
+	void GetWholeSize(int&centerX,int&centerY,int&wholeWidth,int&wholeHeight)
+	{
+		int[]rect={1000000000,1000000000,-1000000000,-1000000000};
+		_GetWholeSizeRect(rect);
+		wholeWidth=rect[2]-rect[0];
+		wholeHeight=rect[3]-rect[1];
+		centerX=rect[0]+wholeWidth/2;
+		centerY=rect[1]+wholeHeight/2;
+	}
+	
+	void _MouseDown(int button)
+	{
+		_IsPressed=true;
+		_PressedButton=button;
+		_PressedX=__MouseX;
+		_PressedY=__MouseY;
+		OnMouseDown(button);
+		
+		if(_IsDraggable&&_PressedButton==(0))
+		{
+			bool draggableCursor=(GetCurrentCursor()==(6));
+			if(draggableCursor)
+			{
+				_IsDragged=true;
+				OnDragChanged();
+			}
+		}
+		
+		if(!_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(button);
+			_MousePressed(button);
+		}
+		_PressedRepeatTime=GetTick()+500;
+	}
+	
+	void _MousePressed(int button)
+	{
+		OnMousePressed(button);
+		if(button==(0))
+		OnLMousePressed();
+		else if(button==(1))
+		OnRMousePressed();
+		_PressedRepeatTime=GetTick()+40;
+	}
+	
+	void _MouseUp(bool lost)
+	{
+		_IsPressed=false;
+		
+		if(_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(_PressedButton);
+			_MousePressed(_PressedButton);
+		}
+		
+		OnMouseUp(_PressedButton,lost);
+		
+		if(_IsDragged)
+		{
+			_IsDragged=false;
+			OnDragChanged();
+		}
+	}
+	
+	void MouseClick(int button)
+	{
+		OnMouseClick(button);
+		if(button==(0))
+		OnLMouseClick();
+		else if(button==(1))
+		OnRMouseClick();
+	}
+	
+	void _MouseMove()
+	{
+		OnMouseMove();
+	}
+	
+	void _GlobalMouseDown(int button)
+	{
+		OnGlobalMouseDown(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseDown(button);
+	}
+	
+	void _GlobalMouseUp(int button)
+	{
+		OnGlobalMouseUp(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseUp(button);
+	}
+	
+	void _GlobalMousePressed(int button)
+	{
+		OnGlobalMousePressed(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMousePressed(button);
+	}
+	
+	void _GlobalMouseClick(int button)
+	{
+		OnGlobalMouseClick(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseClick(button);
+	}
+	
+	void _GlobalMouseMove()
+	{
+		OnGlobalMouseMove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseMove();
+	}
+	
+	void Input(uint8 key,string@text)
+	{
+		OnInput();
+		if(text is null)
+		OnInput(key);
+		else
+		OnInput(text);
+		OnInput(key,text);
+	}
+	
+	void _GlobalInput(uint8 key,string@text)
+	{
+		OnGlobalInput(key,text);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalInput(key,text);
+	}
+	
+	void _Focus()
+	{
+		if(!_IsFocused)
+		{
+			_IsFocused=true;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Unfocus()
+	{
+		if(_IsFocused)
+		{
+			_IsFocused=false;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Hover()
+	{
+		if(!_IsHovered)
+		{
+			_IsHovered=true;
+			OnHoverChanged();
+		}
+	}
+	
+	void _Unhover()
+	{
+		if(_IsHovered)
+		{
+			_IsHovered=false;
+			OnHoverChanged();
+		}
+	}
+	
+	GUIObject@_Clone(GUIObject@parent=null)
+	{
+		GUIObject@newObject=_CloneExt(parent);
+		newObject._Init();
+		return@newObject;
+	}
+	
+	GUIObject@_CloneExt(GUIObject@parent)
+	{
+		GUIObject@newObject;
+		reflection::typeof<GUIObject>(this).instantiate(@this,@newObject);
+		newObject._Children.resize(0);
+		@newObject._Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(newObject);
+		newObject.OnConstruct();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._CloneExt(newObject);
+		return@newObject;
+	}
+	
+	GUIPanel@FindPanel(string&name)
+	{
+		return cast<GUIPanel>(Find(name));
+	}
+	
+	GUIText@FindText(string&name)
+	{
+		return cast<GUIText>(Find(name));
+	}
+	
+	GUITextInput@FindTextInput(string&name)
+	{
+		return cast<GUITextInput>(Find(name));
+	}
+	
+	GUIButton@FindButton(string&name)
+	{
+		return cast<GUIButton>(Find(name));
+	}
+	
+	GUIObject@Find(string&name,bool deepFind=true)
+	{
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._Name!is null&&child._Name==name)
+			return child;
+			
+			if(deepFind)
+			{
+				GUIObject@obj=child.Find(name);
+				if(obj!is null)
+				return obj;
+			}
+		}
+		return null;
+	}
+	
+	GUIObject@GetChild(uint index)
+	{
+		return _Children[index];
+	}
+	
+	void _RefreshPosition()
+	{
+		
+		_Width=_BaseWidth;
+		_Height=_BaseHeight;
+		int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+		int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+		int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+		int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+		int parentBaseWidth=(_Parent!is null?_Parent._BaseWidth:_BaseWidth);
+		int parentBaseHeight=(_Parent!is null?_Parent._BaseHeight:_BaseHeight); 
+		
+		int newPosX;
+		int newPosY;
+		if(_Dock!=0)
+		{
+			if(_Dock==(1))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(2))
+			{
+				newPosX=parentAbsolutePosX+parentWidth-_Width;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(3))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(4))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY+parentHeight-_Height;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(5))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+				_Height=parentHeight;
+			}
+			else
+			{
+				newPosX=_BasePosX+parentAbsolutePosX;
+				newPosY=_BasePosY+parentAbsolutePosY;
+			}
+		}
+		
+		else
+		{
+			if((_Anchor&(0x1))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX;
+			else if((_Anchor&(0x2))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth);
+			else
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth)/2;
+			
+			if((_Anchor&(0x4))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY;
+			else if((_Anchor&(0x8))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight);
+			else
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight)/2;
+		} 
+		
+		if(newPosX!=_AbsolutePosX||newPosY!=_AbsolutePosY)
+		_Move(newPosX-_AbsolutePosX,newPosY-_AbsolutePosY,false,false);
+	}
+	
+	void _SizeChanged()
+	{
+		
+	} 
+	
+	void SetName(string@name)
+	{
+		@_Name=name;
+	}
+	
+	void SetActive(bool active)
+	{
+		if(_ActiveSelf!=active)
+		{
+			_ActiveSelf=active;
+			_ActiveChanged();
+		}
+	}
+	
+	void _ActiveChanged()
+	{
+		OnActiveChanged();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._ActiveChanged();
+	}
+	
+	void SetPosition(int x,int y)
+	{
+		if(_BasePosX==x&&_BasePosY==y)
+		return;
+		
+		_BasePosX=x;
+		_BasePosY=y;
+		_RefreshPosition();
+	}
+	
+	void SetPosition(string&iniKey)
+	{
+		
+		string@str=GetIfaceIniStr(iniKey);
+		if(@str==null||str=="")
+		return;
+		
+		string@[]@valuesStr=splitEx(str," ");
+		if(valuesStr.length()!=4)
+		return;
+		
+		int[]values(4);
+		for(int i=0;i<4;i++)
+		values[i]=valuesStr[i].toInt();
+		
+		_BasePosX=values[0];
+		_BasePosY=values[1];
+		_BaseWidth=values[2]-values[0];
+		_BaseHeight=values[3]-values[1];
+		_RefreshPosition();
+	}
+	
+	void SetSize(int w,int h)
+	{
+		if(_BaseWidth==w&&_BaseHeight==h)
+		return;
+		
+		_BaseWidth=w;
+		_BaseHeight=h;
+		_RefreshPosition();
+		_SizeChanged();
+	}
+	
+	void SetAnchor(int anchorStyles)
+	{
+		if(_Anchor==anchorStyles)
+		return;
+		
+		_Anchor=anchorStyles;
+		_RefreshPosition();
+	}
+	
+	void SetDock(int dockStyle)
+	{
+		if(_Dock==dockStyle)
+		return;
+		
+		_Dock=dockStyle;
+		_RefreshPosition();
+	}
+	
+	void SetDraggable(bool enabled)
+	{
+		_IsDraggable=enabled;
+	}
+	
+	void SetNotHittable(bool enabled)
+	{
+		_IsNotHittable=enabled;
+	}
+	
+	void SetCheckTransparentOnHit(bool enabled)
+	{
+		_CheckTransparentOnHit=enabled;
+	}
+	
+	void SetDeferredMousePressed(bool enabled)
+	{
+		_DeferredMousePressed=enabled;
+	}
+}
+
+shared class GUIPanel:GUIObject
+{
+	Sprite@get_BackgroundImage()final{return _BackgroundImage;}
+	int get_BackgroundImageLayout()final{return _BackgroundImage!is null?_BackgroundImage.Layout:(0);}
+	
+	Sprite@_BackgroundImage;
+	
+	bool IsHit(int x,int y)override
+	{
+		if(GUIObject::IsHit(x,y))
+		{
+			if(_CheckTransparentOnHit&&_BackgroundImage!is null)
+			return(GetPixelColor(_BackgroundImage.Id,_BackgroundImage.Frame,x-_AbsolutePosX,y-_AbsolutePosY)&0xFF000000)!=0;
+			return true;
+		}
+		return false;
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		if(_BackgroundImage!is null)
+		_DrawImage(_BackgroundImage);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void _DrawImage(Sprite@image)
+	{
+		if(_Width>0&&_Height>0)
+		image.Draw(_AbsolutePosX,_AbsolutePosY,_Width,_Height);
+	}
+	
+	void SetBackgroundImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageName,imageLayout);
+	}
+	
+	void SetBackgroundImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageNameHash,imageLayout);
+	}
+	
+	void _SetImage(Sprite@&curImage,string@imageName,int imageLayout)
+	{
+		@curImage=null;
+		if(imageName!is null)
+		{
+			Sprite spr;
+			spr.Load(imageName,(findFirst(imageName,"/")!=-1||findFirst(imageName,"\\")!=-1)?(0):(4));
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+	
+	void _SetImage(Sprite@&curImage,uint imageNameHash,int imageLayout)
+	{
+		if(curImage!is null&&curImage.LoadedNameHash==imageNameHash)
+		return;
+		
+		@curImage=null;
+		if(imageNameHash!=0)
+		{
+			Sprite spr;
+			spr.Load(imageNameHash);
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+}
+
+shared class GUIText:GUIObject
+{
+	string@get_Text(){return _Text;}
+	int get_TextFont()final{return _TextFont;}
+	uint get_TextColor()final{return _TextColor;}
+	uint get_TextColorFocused()final{return _TextColorFocused;}
+	int get_TextFlags()final{return _TextFlags;}
+	
+	string _Text;
+	int _TextFont=((5));
+	uint _TextColor=((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))));
+	uint _TextColorFocused;
+	int _TextFlags;
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetText(string@text,int font,int flags)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+		
+		_TextFont=font;
+		_TextFlags=flags;
+	}
+	
+	void SetText(string@text)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+	}
+	
+	void SetTextFont(int font)
+	{
+		_TextFont=font;
+	}
+	
+	void SetTextFlags(int flags)
+	{
+		_TextFlags=flags;
+	}
+	
+	void SetTextColor(uint color)
+	{
+		_TextColor=color;
+	}
+	
+	void SetTextFocusedColor(uint color)
+	{
+		_TextColorFocused=color;
+	}
+} 
+
+shared class GUITextInput:GUIText
+{
+	uint get_InputLength()final{return _InputLength;}
+	bool get_IsTextPassword()final{return _IsTextPassword;}
+	string get_PasswordChar()final{return _PasswordChar;}
+	
+	uint _InputLength;
+	bool _IsTextPassword;
+	string _PasswordChar;
+	uint _PasswordTime;
+	int _CarriagePos;
+	
+	void _Construct()override
+	{
+		SetCarriage(false);
+		_TextColorFocused=((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF))));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(_IsTextPassword)
+		{
+			string@rawText=text;
+			@text="";
+			for(uint i=0;i<rawText.length();i++)
+			text+=_PasswordChar;
+			if(GetTick()-_PasswordTime<=(1000))
+			text[-1]=rawText[-1];
+		}
+		if(_CarriagePos!=-1&&_IsFocused)
+		{
+			if(_CarriagePos<0)
+			_CarriagePos=0;
+			if(_CarriagePos>int(text.length()))
+			_CarriagePos=text.length();
+			@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		}
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		uint oldLen=_Text.length();
+		_ProcessKey(key,text,_Text,_CarriagePos);
+		while(_InputLength!=0&&_Text.length()>_InputLength)
+		_Text[-1]="";
+		if(_IsTextPassword)
+		_PasswordTime=(_Text.length()>oldLen?GetTick():0);
+		
+		GUIText::Input(key,text);
+	}
+	
+	bool _ProcessKey(uint8 key,string@text,string&resultText,int&carriagePos)
+	{
+		if(carriagePos!=-1)
+		{
+			if(carriagePos<0)
+			carriagePos=0;
+			else if(carriagePos>int(resultText.length()))
+			carriagePos=resultText.length();
+			
+			if(key==0x0E)
+			{
+				if(carriagePos>0)
+				{
+					resultText[carriagePos-1]="";
+					carriagePos--;
+				}
+			}
+			else if(key==0xD3)
+			{
+				if(carriagePos<int(resultText.length()))
+				resultText[carriagePos]="";
+			}
+			else if(key==0xCD)
+			{
+				if(carriagePos<int(resultText.length()))
+				carriagePos++;
+			}
+			else if(key==0xCB)
+			{
+				if(carriagePos>0)
+				carriagePos--;
+			}
+			else if(key==0xC7)
+			{
+				carriagePos=0;
+			}
+			else if(key==0xCF)
+			{
+				carriagePos=resultText.length();
+			}
+			else if(text!is null)
+			{
+				resultText=resultText.substring(0,carriagePos)+text+resultText.substring(carriagePos);
+				carriagePos+=text.length();
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if(key==0x0E)
+			{
+				if(resultText.length()>0)
+				resultText[-1]="";
+			}
+			else if(text!is null)
+			{
+				resultText+=text;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	void SetInputLength(uint length)
+	{
+		_InputLength=length;
+	}
+	
+	void SetInputPassword(string@passwordChar)
+	{
+		_IsTextPassword=(@passwordChar!=null&&passwordChar.length()==1);
+		_PasswordChar=passwordChar;
+		_PasswordTime=0;
+	}
+	
+	void SetCarriage(bool enable)
+	{
+		_CarriagePos=(enable?int(_Text.length()):-1);
+	}
+}
+
+shared class GUIButton:GUIPanel
+{
+	bool get_IsDisabled()final{return _IsDisabled;}
+	bool get_IsSwitched()final{return _IsSwitched;}
+	Sprite@get_PressedImage()final{return _PressedImage;}
+	int get_PressedImageLayout()final{return _PressedImage!is null?_PressedImage.Layout:(0);}
+	Sprite@get_HoverImage()final{return _HoverImage;}
+	int get_HoverImageLayout()final{return _HoverImage!is null?_HoverImage.Layout:(0);}
+	Sprite@get_DisabledImage()final{return _DisabledImage;}
+	int get_DisabledImageLayout()final{return _DisabledImage!is null?_DisabledImage.Layout:(0);}
+	
+	bool _IsDisabled;
+	bool _IsSwitched;
+	Sprite@_PressedImage;
+	Sprite@_HoverImage;
+	Sprite@_DisabledImage;
+	
+	void _Construct()override
+	{
+		_DeferredMousePressed=true;
+		
+		GUIPanel::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		if(!_IsDisabled)
+		{
+			
+			bool isPressed=((_IsPressed&&_PressedButton==(0))||_IsSwitched);
+			if(isPressed&&_PressedImage!is null)
+			_DrawImage(_PressedImage);
+			
+			else if(_IsHovered&&_HoverImage!is null)
+			_DrawImage(_HoverImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		else
+		{
+			
+			if(_DisabledImage!is null)
+			_DrawImage(_DisabledImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void _MousePressed(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::_MousePressed(button);
+	}
+	
+	void SetPressedImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageName,imageLayout);
+	}
+	
+	void SetPressedImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageNameHash,imageLayout);
+	}
+	
+	void SetHoverImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageName,imageLayout);
+	}
+	
+	void SetHoverImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageNameHash,imageLayout);
+	}
+	
+	void SetDisabledImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageName,imageLayout);
+	}
+	
+	void SetDisabledImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageNameHash,imageLayout);
+	}
+	
+	void SetSwitch(bool enabled)
+	{
+		_IsSwitched=enabled;
+	}
+	
+	void SetCondition(bool enabled)
+	{
+		_IsDisabled=!enabled;
+	}
+}
+
+shared class GUICheckBox:GUIButton
+{
+	bool get_IsChecked()final{return _IsSwitched;} 
+	
+	void OnCheckedChanged(){}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		if(button==(0))
+		SetChecked(!_IsSwitched);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)
+	{
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIRadioButton:GUICheckBox
+{
+	void MouseClick(int button)
+	{
+		if(_IsDisabled||_IsSwitched)
+		return;
+		
+		if(button==(0))
+		SetChecked(true);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)override
+	{
+		if(checked&&_Parent!is null)
+		{
+			for(uint i=0;i<_Parent._Children.length();i++)
+			{
+				GUIRadioButton@button=cast<GUIRadioButton>(_Parent._Children[i]);
+				if(button!is null&&button._IsSwitched)
+				{
+					button._IsSwitched=false;
+					button.OnCheckedChanged();
+				}
+			}
+		}
+		
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIScreen:GUIPanel
+{
+	int get_Index()final{return _Index;}
+	bool get_IsHardcoded()final{return _IsHardcoded;}
+	bool get_IsMain()final{return((_Index)>=(1)&&(_Index)<=(7));}
+	bool get_IsModal()final{return _IsModal;}
+	bool get_IsMultiinstance()final{return _IsMultiinstance;}
+	bool get_IsCloseOnMiss()final{return _IsCloseOnMiss;}
+	int[]get_AvailableCursors()final{return _AvailableCursors;}
+	int get_Cursor()final{return _Cursor;}
+	bool get_IsCanMove()final{return _IsCanMove;}
+	bool get_IsMoveIgnoreBorders()final{return _IsMoveIgnoreBorders;}
+	
+	int _Index;
+	bool _IsHardcoded;
+	bool _IsRegistered;
+	bool _IsModal;
+	bool _IsMultiinstance;
+	bool _IsCloseOnMiss;
+	int[]_AvailableCursors;
+	int _Cursor;
+	bool _IsCanMove;
+	bool _IsMoveIgnoreBorders; 
+	
+	bool[]@_InputKeyPressed;
+	bool[]@_InputMousePressed;
+	
+	void _Show(dictionary@params)override
+	{
+		
+		_ActiveSelf=true; 
+		
+		_Cursor=(_AvailableCursors.length()>0?AvailableCursors[0]:(0)); 
+		
+		GUIPanel::_Show(params);
+	}
+	
+	void _Hide()override
+	{
+		
+		_ActiveSelf=false; 
+		
+		GUIPanel::_Hide();
+	}
+	
+	void _Appear(dictionary@params)override
+	{
+		
+		ChangeCursor(_Cursor); 
+		
+		GUIPanel::_Appear(params);
+	}
+	
+	void _Disappear()override
+	{
+		
+		_Cursor=GetCurrentCursor(); 
+		
+		GUIPanel::_Disappear();
+	}
+	
+	void _GlobalMouseClick(int button)override
+	{
+		if(button==(1))
+		{
+			if(_AvailableCursors.length()>0)
+			{
+				int curCursor=GetCurrentCursor();
+				int curCursorIndex=_AvailableCursors.find(curCursor);
+				if(curCursorIndex!=-1)
+				{
+					curCursorIndex++;
+					if(curCursorIndex>=int(_AvailableCursors.length()))
+					curCursorIndex=0;
+					ChangeCursor(_AvailableCursors[curCursorIndex]);
+				}
+			}
+		}
+		else
+		{
+			GUIPanel::_GlobalMouseClick(button);
+		}
+	}
+	
+	void _GlobalMouseMove()override
+	{
+		
+		if(_IsCanMove)
+		{
+			GUIObject@pressedObj=_FindPressed(this);
+			if(pressedObj!is null&&pressedObj._PressedButton==(0)&&pressedObj._IsHitch())
+			{
+				int lastPosX=_AbsolutePosX;
+				int lastPosY=_AbsolutePosY;
+				int newPosX=_AbsolutePosX+(__MouseX-pressedObj._PressedX);
+				int newPosY=_AbsolutePosY+(__MouseY-pressedObj._PressedY);
+				pressedObj._PressedX=__MouseX;
+				pressedObj._PressedY=__MouseY; 
+				
+				if(!_IsMoveIgnoreBorders)
+				{
+					int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+					int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+					int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+					int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+					int px=newPosX;
+					int py=newPosY;
+					if(newPosX<parentAbsolutePosX)
+					newPosX=parentAbsolutePosX;
+					if(newPosY<parentAbsolutePosY)
+					newPosY=parentAbsolutePosY;
+					if(newPosX+_Width>parentWidth)
+					newPosX=parentWidth-_Width;
+					if(newPosY+_Height>parentHeight)
+					newPosY=parentHeight-_Height;
+					pressedObj._PressedX+=newPosX-px;
+					pressedObj._PressedY+=newPosY-py;
+				} 
+				
+				if(lastPosX!=newPosX||lastPosY!=newPosY)
+				{
+					int deltaX=newPosX-lastPosX;
+					int deltaY=newPosY-lastPosY;
+					_Move(deltaX,deltaY,true,true);
+				}
+			}
+		}
+		
+		GUIPanel::_GlobalMouseMove();
+	}
+	
+	GUIObject@_FindPressed(GUIObject@obj)
+	{
+		if(obj._IsPressed)
+		return obj;
+		for(uint i=0;i<obj._Children.length();i++)
+		{
+			GUIObject@pressedObj=_FindPressed(obj._Children[i]);
+			if(pressedObj!is null)
+			return pressedObj;
+		}
+		return null;
+	} 
+	
+	void SetModal(bool enabled)
+	{
+		_IsModal=enabled;
+	}
+	
+	void SetMultiinstance(bool enabled)
+	{
+		_IsMultiinstance=enabled;
+	}
+	
+	void SetCloseOnMiss(bool enabled)
+	{
+		_IsCloseOnMiss=enabled;
+	}
+	
+	void SetAvailableCursors(int[]cursors)
+	{
+		_AvailableCursors=cursors;
+	}
+	
+	void SetCanMove(bool enabled,bool ignoreBorders)
+	{
+		_IsCanMove=enabled;
+		_IsMoveIgnoreBorders=ignoreBorders;
+	}
+}
+
+shared class GUIGrid:GUIPanel
+{
+	string@get_CellPrototype()final{return _CellPrototype;}
+	uint get_GridSize()final{return _GridSize;}
+	int get_Columns()final{return _Columns;}
+	int get_PaddingX()final{return _PaddingX;}
+	int get_PaddingY()final{return _PaddingY;}
+	GUIObject@[]get_Cells()final{return _Cells;}
+	
+	string@_CellPrototype;
+	uint _GridSize;
+	int _Columns;
+	int _PaddingX;
+	int _PaddingY;
+	GUIObject@[]_Cells;
+	
+	void _Init()override
+	{
+		if(_CellPrototype!is null)
+		SetCellPrototype(_CellPrototype);
+		
+		if(_GridSize>0)
+		ResizeGrid(_GridSize);
+		
+		GUIPanel::_Init();
+	}
+	
+	void ResizeGrid(uint size)
+	{
+		
+		if(_CellPrototype is null||_CellPrototype.length()==0)
+		return;
+		GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+		if(cellPrototype is null)
+		return; 
+		
+		int childIndex=-1;
+		if(cellPrototype._Parent is this)
+		childIndex=cellPrototype._Parent._Children.findByRef(cellPrototype); 
+		
+		for(uint i=0;i<_Children.length();)
+		{
+			if(_Cells.findByRef(_Children[i])!=-1)
+			_Children.removeAt(i);
+			else
+			i++;
+		}
+		_Cells.resize(0); 
+		
+		cellPrototype._ActiveSelf=true;
+		GUIObject@[]cellInstances;
+		int col=0,row=0;
+		for(uint i=0;i<size;i++)
+		{
+			GUIObject@cellInstance=cellPrototype._CloneExt(this);
+			_Children.removeLast();
+			_Children.insertAt(++childIndex,cellInstance);
+			_Cells.insertLast(cellInstance);
+			_SetCellIndex(cellInstance,this,cellInstances.length());
+			cellInstances.insertLast(cellInstance);
+			cellInstance._Move(col*(cellInstance._Width+_PaddingX),row*(cellInstance._Height+_PaddingY),false,true);
+			
+			if(++col>=_Columns)
+			{
+				col=0;
+				row++;
+			}
+		}
+		cellPrototype._ActiveSelf=false; 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		{
+			OnResizeGrid(cellInstances[i],i);
+			_ResizeGrid(cellInstances[i],cellInstances[i],i);
+		} 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		cellInstances[i]._Init();
+	}
+	
+	void _SetCellIndex(GUIObject@obj,GUIGrid@grid,uint cellIndex)
+	{
+		@obj._Grid=grid;
+		obj._CellIndex=cellIndex;
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_SetCellIndex(obj._Children[i],grid,cellIndex);
+	}
+	
+	void _ResizeGrid(GUIObject@obj,GUIObject@cell,uint cellIndex)
+	{
+		obj.OnResizeGrid(cell,cellIndex);
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_ResizeGrid(obj._Children[i],cell,cellIndex);
+	}
+	
+	void SetCellPrototype(string name)
+	{
+		@_CellPrototype=name;
+		if(_CellPrototype!is null&&_CellPrototype.length()>0)
+		{
+			GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+			if(cellPrototype!is null)
+			cellPrototype._ActiveSelf=false;
+		}
+	}
+	
+	void SetGridSize(uint size)
+	{
+		_GridSize=size;
+	}
+	
+	void SetColumns(int length)
+	{
+		_Columns=length;
+	}
+	
+	void SetPadding(int x,int y)
+	{
+		_PaddingX=x;
+		_PaddingY=y;
+	}
+}
+
+shared class GUIMessageBox:GUIText
+{
+	string[]get_MessageTexts()final{return _MessageTexts;}
+	int[]get_MessageTypes()final{return _MessageTypes;}
+	string[]get_MessageTimes()final{return _MessageTimes;}
+	bool[]get_DisplayedMessages()final{return _DisplayedMessages;}
+	bool get_InvertMessages()final{return _InvertMessages;}
+	
+	string[]_MessageTexts;
+	int[]_MessageTypes;
+	string[]_MessageTimes;
+	bool[]_DisplayedMessages;
+	bool _InvertMessages;
+	int _Scroll;
+	int _MaxScroll;
+	int _ScrollLines;
+	Sprite _ScrollUp;
+	Sprite _ScrollDown;
+	
+	void _Construct()override
+	{
+		_DisplayedMessages=array<bool>((10),true);
+		
+		_ScrollUp.Load("SUPARROW.FRM",(4));
+		_ScrollDown.Load("SDNARROW.FRM",(4));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Show(dictionary@params)override
+	{
+		GUIText::_Show(params);
+		
+		_InvertMessages=__MsgboxInvert;
+		_GenerateText();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(!_InvertMessages)
+		_TextFlags=(0x0040)|(0x0020)|(0x0800|((_ScrollLines)<<16));
+		else
+		_TextFlags=(0x0400|((_ScrollLines)<<16));
+		
+		GUIText::_Draw(callCallback);
+		
+		if(_IsHovered)
+		{
+			Sprite@spr=(__MouseY<_AbsolutePosY+_Height/2?_ScrollUp:_ScrollDown);
+			spr.Draw(__MouseX-spr.Width/2,__MouseY-spr.Height/2);
+		}
+	}
+	
+	void _Remove()override
+	{
+		__HideCursor=false;
+		
+		GUIText::_Remove();
+	}
+	
+	void _Hover()override
+	{
+		GUIText::_Hover();
+		
+		__HideCursor=true;
+	}
+	
+	void _Unhover()override
+	{
+		GUIText::_Unhover();
+		
+		__HideCursor=false;
+	}
+	
+	void _SizeChanged()override
+	{
+		_GenerateText();
+		
+		GUIText::_SizeChanged();
+	}
+	
+	void _MousePressed(int button)override
+	{
+		if(button==(0)||button==(3)||button==(4))
+		{
+			if(button==(3)||(button==(0)&&__MouseY<_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll>0)
+				_Scroll--;
+				if(!_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+			}
+			else if(button==(4)||(button==(0)&&__MouseY>=_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+				if(!_InvertMessages&&_Scroll>0)
+				_Scroll--;
+			}
+			_GenerateText();
+		}
+		
+		GUIText::_MousePressed(button);
+	}
+	
+	void AddMessage(string@text,int type=(0))
+	{
+		
+		if(type==(0)&&text=="error")
+		return; 
+		
+		string messageText;
+		if(type>=(0)&&type<=(3))
+		{
+			uint[]sayColors={((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0xAA)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0x66)&0xFF)<<8)|((0)&0xFF))))};
+			messageText="|"+sayColors[type]+" "+EncodeUTF8((0x2022))+" |"+((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))))+" "+text;
+		}
+		else
+		{
+			messageText=text;
+		}
+		_MessageTexts.insertLast(messageText); 
+		
+		int messageType=type;
+		_MessageTypes.insertLast(messageType); 
+		
+		uint16 year=0;
+		uint16 month=0;
+		uint16 day=0;
+		uint16 dayOfWeek=0;
+		uint16 hour=0;
+		uint16 minute=0;
+		uint16 second=0;
+		uint16 milliseconds;
+		GetTime(year,month,day,dayOfWeek,hour,minute,second,milliseconds);
+		string messageTime=(hour<=9?"0":"")+hour+":"+(minute<=9?"0":"")+minute+":"+(second<=9?"0":"")+second+" ";
+		_MessageTimes.insertLast(messageTime); 
+		
+		if(_DisplayedMessages[type])
+		{
+			if(_Scroll>0&&_IsHovered)
+			_Scroll++;
+			else
+			_Scroll=0;
+		}
+		_GenerateText();
+	}
+	
+	void _GenerateText()
+	{
+		if(!Active)
+		return;
+		
+		_Text="";
+		if(_MessageTexts.length()==0)
+		return;
+		
+		int tw=0,th=0;
+		int maxLines=0;
+		GetTextInfo(null,_Width,_Height,_TextFont,0,tw,th,maxLines);
+		if(maxLines<=0)
+		{
+			_MaxScroll=0;
+			_ScrollLines=0;
+			return;
+		}
+		
+		_ScrollLines=-1;
+		int lines=0;
+		for(int i=_MessageTexts.length()-1;i>=0;i--)
+		{
+			string@messageText=_MessageTexts[i];
+			int messageType=_MessageTypes[i];
+			string@messageTime=_MessageTimes[i]; 
+			
+			if(!_DisplayedMessages[messageType])
+			continue; 
+			
+			int curLines=lines;
+			int skipLines=0;
+			GetTextInfo(messageText,_Width,1000,_TextFont,0,tw,th,skipLines);
+			lines+=skipLines;
+			
+			if(_ScrollLines<0)
+			{
+				if(lines<=_Scroll)
+				continue;
+				_ScrollLines=_Scroll-curLines;
+			}
+			
+			if(curLines-_Scroll<maxLines)
+			{
+				
+				if(_InvertMessages)
+				_Text+=messageText+"\n";
+				else
+				_Text=messageText+"\n"+_Text;
+			}
+			else
+			{
+				break;
+			}
+		}
+		_MaxScroll=lines-maxLines;
+		if(_ScrollLines<0)
+		_ScrollLines=0;
+	}
+	
+	bool _SetDisplayedMessage(int messageType,bool enable)
+	{
+		bool generateText=false;
+		
+		if(messageType!=(10))
+		{
+			if(_DisplayedMessages[messageType]!=enable)
+			{
+				_DisplayedMessages[messageType]=enable;
+				generateText=true;
+			}
+		}
+		else
+		{
+			for(uint i=0;i<(10);i++)
+			{
+				if(_DisplayedMessages[messageType]!=enable)
+				{
+					_DisplayedMessages[messageType]=enable;
+					generateText=true;
+				}
+			}
+		}
+		
+		return generateText;
+	}
+	
+	void SetDisplayedMessages(int[]messageTypes)
+	{
+		bool generateText=false;
+		bool displayAll=(messageTypes.find((10))!=-1);
+		for(uint i=0;i<_DisplayedMessages.length();i++)
+		if(_SetDisplayedMessage(i,displayAll||messageTypes.find(i)!=-1))
+		generateText=true;
+		if(generateText)
+		_GenerateText();
+	}
+	
+	void ChangeDisplayedMessage(int messageType,bool enable)
+	{
+		if(_SetDisplayedMessage(messageType,enable))
+		_GenerateText();
+	}
+	
+	void SetInvertMessages(bool invert)
+	{
+		_InvertMessages=invert;
+		_GenerateText();
+	}
+} 
+
+shared class GUIConsole:GUITextInput
+{
+	string get_HistoryStorageName()final{return _HistoryStorageName;}
+	string[]@get_History()final{
+		return _History;
+	}
+	uint get_HistoryMaxLength()final{return _HistoryMaxLength;}
+	
+	string@_HistoryStorageName;
+	string _HistoryActualStorageName;
+	string[]_History;
+	uint _HistoryMaxLength;
+	uint _HistoryCur;
+	
+	void _Construct()override
+	{
+		SetCarriage(true);
+		@_HistoryStorageName="";
+		
+		GUITextInput::_Construct();
+	}
+	
+	void Toggle()
+	{
+		if(!Active)
+		{
+			
+			Activate();
+		}
+		else if(_Text.length()==0)
+		{
+			
+			Deactivate();
+		}
+		else
+		{
+			
+			SendText();
+		}
+	}
+	
+	void Activate()
+	{
+		
+		if(Active||!Parent.Active)
+		return; 
+		
+		string actualStorageName="";
+		if(_HistoryStorageName!is null&&__Name!is null&&__Name!="")
+		actualStorageName="console_"+__Name+_HistoryStorageName;
+		
+		if(_HistoryActualStorageName!=actualStorageName)
+		{
+			_History.resize(0);
+			_HistoryActualStorageName=actualStorageName;
+			if(_HistoryActualStorageName!="")
+			{
+				Serializator data;
+				if(data.Load(_HistoryActualStorageName))
+				data.Get(_History);
+			}
+		}
+		
+		_HistoryCur=_History.length(); 
+		
+		SetActive(true);
+	}
+	
+	void Deactivate()
+	{
+		
+		if(_ActiveSelf)
+		SetActive(false);
+	}
+	
+	void SendText()
+	{
+		if(!Active)
+		return; 
+		
+		_History.insertLast(_Text);
+		for(uint i=0;i<_History.length()-1;)
+		{
+			if(_History[i]==_History.last())
+			_History.removeAt(i);
+			else
+			i++;
+		} 
+		
+		uint historyMaxLength=(_HistoryMaxLength!=0?_HistoryMaxLength:__ConsoleHistorySize);
+		while(_History.length()>historyMaxLength)
+		_History.removeAt(0);
+		_HistoryCur=_History.length(); 
+		
+		if(_HistoryActualStorageName!="")
+		{
+			Serializator data;
+			data.Set(_History);
+			data.Save(_HistoryActualStorageName);
+		} 
+		
+		bool[]@keyPressed=Screen._InputKeyPressed;
+		if(keyPressed[0x1D]||keyPressed[0x9D])
+		CustomCall("ConsoleMessage\n/s"+_Text,"\n");
+		else if(keyPressed[0x38]||keyPressed[0xB8])
+		CustomCall("ConsoleMessage\n/w"+_Text,"\n");
+		else if(keyPressed[0x2A]||keyPressed[0x36])
+		CustomCall("ConsoleMessage\n/r"+_Text,"\n");
+		else
+		CustomCall("ConsoleMessage\n"+_Text,"\n"); 
+		
+		_Text="";
+		_CarriagePos=0;
+	}
+	
+	void _GlobalInput(uint8 key,string@text)override
+	{
+		GUITextInput::_GlobalInput(key,text);
+		
+		if(Active)
+		{
+			if(key==0xC8&&_HistoryCur>0)
+			{
+				_HistoryCur--;
+				_Text=_History[_HistoryCur];
+				_CarriagePos=_Text.length();
+			}
+			else if(key==0xD0)
+			{
+				if(_HistoryCur+1<_History.length())
+				{
+					_HistoryCur++;
+					_Text=_History[_HistoryCur];
+					_CarriagePos=_Text.length();
+				}
+				else
+				{
+					_HistoryCur=_History.length();
+					_Text="";
+					_CarriagePos=0;
+				}
+				
+			}
+			else
+			{
+				GUITextInput::Input(key,text);
+			}
+		}
+		
+		if(key==0x1C||key==0x9C)
+		{
+			Toggle();
+		}
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		GUIText::Input(key,text);
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		string@text=Text;
+		
+		if(_CarriagePos<0)
+		_CarriagePos=0;
+		if(_CarriagePos>int(text.length()))
+		_CarriagePos=text.length();
+		
+		@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,_TextColor,_TextFont,_TextFlags);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetHistoryStorage(string storageName)
+	{
+		
+		_HistoryStorageName=storageName;
+	}
+	
+	void SetHistoryMaxLength(uint length)
+	{
+		_HistoryMaxLength=length;
+	}
+}
+
+shared class GUIItemView:GUIGrid
+{
+	int get_UserData()final{return _UserData;}
+	bool get_UseSorting()final{return _UseSorting;}
+	uint get_CritterId()final{return _CritterId;}
+	ItemCl@[]@get_Items()final{
+		return _Items;
+	}
+	int get_Scroll()final{return _Scroll;}
+	
+	int _UserData;
+	bool _UseSorting;
+	uint _CritterId;
+	ItemCl@[]_Items;
+	int _Scroll; 
+	
+	int OnCheckItem(ItemCl@item){return-1;}
+	void OnScrollChanged(){}
+	
+	ItemCl@GetItem(uint cellIndex)
+	{
+		int itemIndex=cellIndex+_Scroll;
+		return(itemIndex>=0&&itemIndex<int(_Items.length())?_Items[itemIndex]:null);
+	}
+	
+	void Resort()
+	{
+		_Resort(); 
+		
+		int maxScroll=int(_Items.length())-int(_GridSize);
+		if(_Columns>0)
+		maxScroll+=maxScroll%_Columns;
+		if(maxScroll<0)
+		maxScroll=0;
+		if(_Scroll>maxScroll)
+		SetScroll(maxScroll);
+	}
+	
+	void _Resort()
+	{
+		_Items.resize(0);
+		
+		CritterCl@cr=(_CritterId==0?GetChosen():GetCritter(_CritterId));
+		if(cr!is null)
+		{
+			ItemCl@[]items;
+			cr.GetItems(-1,items);
+			if(!_UseSorting)
+			{
+				for(uint i=0;i<items.length();i++)
+				{
+					int itemIndex=OnCheckItem(items[i]);
+					if(itemIndex>=0)
+					{
+						if(itemIndex>=int(_Items.length()))
+						_Items.resize(itemIndex+1);
+						@_Items[itemIndex]=items[i];
+					}
+				}
+			}
+			else
+			{
+				int[]sortValues;
+				for(uint i=0;i<items.length();i++)
+				{
+					int sortValue=OnCheckItem(items[i]);
+					if(sortValue>=0)
+					{
+						bool added=false;
+						for(uint j=0;j<_Items.length();j++)
+						{
+							if(sortValues[j]>sortValue)
+							{
+								_Items.insertAt(j,items[i]);
+								sortValues.insertAt(j,sortValue);
+								added=true;
+								break;
+							}
+						}
+						if(!added)
+						{
+							_Items.insertLast(items[i]);
+							sortValues.insertLast(sortValue);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	void SetUserData(int data)
+	{
+		_UserData=data;
+	}
+	
+	void SetUseSorting(bool enable)
+	{
+		_UseSorting=enable;
+	}
+	
+	void SetScroll(int value,bool checkAvailability=false)
+	{
+		if(checkAvailability&&!CheckScrollAvailability(value))
+		return;
+		
+		_Scroll=value;
+		OnScrollChanged();
+	}
+	
+	bool CheckScrollAvailability(int value)
+	{
+		if(value<_Scroll)
+		{
+			int minScroll=0;
+			return value>=minScroll;
+		}
+		if(value>_Scroll)
+		{
+			int maxScroll=int(_Items.length())-int(_GridSize);
+			if(_Columns>0)
+			maxScroll+=maxScroll%_Columns;
+			if(maxScroll<0)
+			maxScroll=0;
+			return value<=maxScroll;
+		}
+		return false;
+	}
+	
+	void SetCritter(uint crId)
+	{
+		_CritterId=crId;
+		_Resort();
+	}
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
+class Timeout
+{
+	int coordX;
+	int coordY;
+	uint Indention;
+	uint Font;
+	uint FontFlags;
+	uint NameColor;
+	uint ValueColor;
+	
+	Timeout()
+	{
+		this.coordX=10;
+		this.coordY=40;
+		this.Indention=10;
+		this.NameColor=((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF))));
+		this.ValueColor=((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF))));
+		this.Font=(5);
+		this.FontFlags=(0x0200);
+	}
+}
+
+Timeout Timeouts;
+
+string spelling(uint value,string opt1,string opt2,string opt3)
+{
+	string result;
+	if(value==1||(value%10==1&&value!=11))
+	result=opt1;
+	else if((value>1&&value<5)||(value>20&&value%10>1&&value%10<5))
+	result=opt2;
+	else if((value>4&&value<21)||value%10>4||value%10==0)
+	result=opt3;
+	return result;
+}
+
+int draw_timeouts(CritterCl&critter,uint skill,string skillname,int x,int y)
+{
+	int timeout=critter.Timeout[skill];
+	timeout/=__TimeMultiplier;
+	
+	if(timeout>0)
+	{
+		string text="";
+		
+		uint day,hour,minute,second;
+		string d="",h="",m="",s="";
+		day=timeout/86400;
+		hour=timeout%86400/3600;
+		minute=timeout%86400%3600/60;
+		second=timeout%86400%3600%60;
+		if(second>0)
+		s=second+spelling(second,"second","seconds","seconds");
+		if(minute>0)
+		m=minute+spelling(minute,"minute","minutes","minutes")+(second>0?",":"");
+		if(hour>0)
+		h=hour+spelling(hour,"hour","hour","hours")+((minute>0||second>0)?",":"");
+		if(day>0)
+		d=day+spelling(day,"day","day","days")+((hour>0||minute>0||second>0)?",":""); 
+		
+		text=d+h+m+s;
+		if(skill==(238))
+		DrawText(skillname+": "+text,x,y,__ScreenWidth,10,((uint((0xFF<<24)|(((0xFF)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),Timeouts.Font,Timeouts.FontFlags);
+		else if(skill==(231)||skill==(230)||skill==(233)||skill==(232))
+		DrawText(skillname+": "+text,x,y,__ScreenWidth,10,((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF)))),Timeouts.Font,Timeouts.FontFlags);
+		else if(skill==(241))
+		DrawText(skillname+": "+text,x,y,__ScreenWidth,10,((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF)))),Timeouts.Font,Timeouts.FontFlags);
+		else
+		DrawText(skillname+": "+text,x,y,__ScreenWidth,10,Timeouts.ValueColor,Timeouts.Font,Timeouts.FontFlags);
+		y+=Timeouts.Indention;
+	}
+	return(y);
+}
+
+void TimeoutsDraw()
+{
+	if(GetCurrentMapPid()==0)
+	return;
+	CritterCl@critter=GetChosen();
+	int x=Timeouts.coordX;
+	int y=Timeouts.coordY;
+	for(uint i=0;i<9;++i)
+	{
+		if(i==0&&critter.Timeout[(241)]>0)
+		y=draw_timeouts(critter,(241),"Replication",x,y);
+		if(i==1&&critter.Timeout[(235)]>0)
+		y=draw_timeouts(critter,(235),"Steal",x,y);
+		if(i==2&&critter.Timeout[(234)]>0)
+		y=draw_timeouts(critter,(234),"Lockpick",x,y);
+		if(i==3&&critter.Timeout[(233)]>0)
+		y=draw_timeouts(critter,(233),"Science",x,y);
+		if(i==4&&critter.Timeout[(232)]>0)
+		y=draw_timeouts(critter,(232),"Repair",x,y);
+		if(i==5&&critter.Timeout[(231)]>0)
+		y=draw_timeouts(critter,(231),"Doctor",x,y);
+		if(i==6&&critter.Timeout[(230)]>0)
+		y=draw_timeouts(critter,(230),"First Aid",x,y);
+		if(i==7&&critter.Timeout[(243)]>0)
+		y=draw_timeouts(critter,(243),"Sneak",x,y);
+		if(i==8&&critter.Timeout[(238)]>0&&!IsTurnBased())
+		y=draw_timeouts(critter,(238),"Combat",x,y);
+	}
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+
+void InitAwarenessHead()
+{
+	
+	CritterCl@cr=GetMonitorCritter(__MouseX,__MouseY);
+	if(!(@cr!=null))
+	return;
+	ItemCl@item=cr.GetItem(0,(1));
+	ItemCl@itemArmor=cr.GetItem(0,(3));
+	int hp_amo=cr.Stat[(72)];
+	
+	if((@cr!=null))
+	{
+		int Y=__MouseY;
+		string YourMom=cr.Stat[(77)];
+		string Myself="Level: ";
+		if((cr.Damage[(502)]!=0||cr.Damage[(503)]!=0||cr.Damage[(504)]!=0||cr.Damage[(505)]!=0||cr.Damage[(506)]!=0))
+		{
+			DrawText("Injured",__MouseX,Y-60,500,100,((uint((0xFF<<24)|(((0xAA)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),(5),(0x0200));
+			Y=Y+13;
+		}
+		if((@itemArmor!=null))
+		{
+			DrawText(""+GetMsgStr((2),(itemArmor.GetProtoId()*100+itemArmor.Info)),__MouseX,Y-60,500,100,0x0,(5),(0x0200));
+			Y=Y+13;
+		}
+		
+		else
+		{
+			DrawText("No Armor",__MouseX,Y-60,500,100,((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))),(5),(0x0200));
+			Y=Y+13;
+		}
+		
+		if((@item!=null))
+		{
+			DrawText(""+GetMsgStr((2),(item.GetProtoId()*100+item.Info)),__MouseX,Y-60,500,100,0x0,(5),(0x0200));
+			Y=Y+13;
+		}
+		
+		else
+		{
+			DrawText("Unarmed",__MouseX,Y-60,500,100,((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))),(5),(0x0200));
+			Y=Y+13;
+		}
+		
+		DrawText(Myself+YourMom,__MouseX,Y-60,500,100,((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))),(5),(0x0200));
+	}
+}
+
+import void InitializeGame()from"config";
+import void InitTestScreen()from"client_screen_test";
+import void InitRadioScreen()from"radio";
+import bool PerkCheck(CritterCl&cr,uint perk)from"perks";
+import void CritterGenerate(int[]&data)from"parameters";
+import bool CritterGenerateCheck(const int[]&data)from"parameters";
+import void InitNameColorizing()from"name_colorizing";
+import bool TryColorizeCritter(CritterCl&cr)from"name_colorizing";
+import bool PlayerIgnored(CritterCl&cr)from"ignore_list";
+import bool IgnorePlayer(string&message)from"ignore_list";
+import void InitIgnoreList()from"ignore_list";
+import void InitChosenTabs()from"chosen_tabs";
+import void DrawChosenTabs()from"chosen_tabs";    
+
+import void PlayAnimSound(uint crType,int gender,uint anim1,uint anim2)from"animation";
+import uint CheckPlayerName(const string&name)from"parameters";  
+
+bool start()
+{
+	InitializeGame();
+	
+	if(__ScreenWidth<800||__ScreenWidth>1280||__ScreenHeight<600||__ScreenHeight>1024)
+	{
+		
+		Message(GetMsgStr((3),(1040)));
+	}       
+	
+	LoadFont((10),"CourierNewSmall"); 
+	
+	GUI_EngineCallback_Start();
+	GUI_AddDragAndDropHandler(ItemsDragAndDropHandler);
+	
+	InitNameColorizing();
+	InitIgnoreList();
+	
+	InitRadioScreen();
+	InitChosenTabs();
+	TimeoutsDraw();
+	InitAwarenessHead();                                       
+	
+	return true;
+}  
+
+void finish()
+{
+	
+}  
+
+uint loop()
+{
+	GUI_EngineCallback_Loop();
+	return 1;
+}  
+
+void get_active_screens(int[]&result)
+{
+	GUI_EngineCallback_GetActiveScreens(result);
+}  
+
+void screen_change(bool show,int screen,dictionary@params)
+{
+	if(((screen)>=(1)&&(screen)<=(7)))
+	__ConsoleActive=false;
+	
+	if(show)
+	GUI_EngineCallback_ShowScreen(screen,params);
+	else
+	GUI_EngineCallback_HideScreen(screen);
+}            
+
+void render_iface(uint layer)
+{
+	if(layer==1)
+	{
+		InitAwarenessHead();
+	}
+	if(layer==3)
+	{
+		TimeoutsDraw();
+	}
+	if(layer==2){
+		GUI_EngineCallback_Draw(true);
+		DrawChosenTabs();
+		GUI_EngineCallback_Draw(false);    
+		
+		CritterCl@chosen=GetChosen();
+		if((@chosen!=null))
+		{
+			CritterCl@[]critters;
+			int i=0;
+			GetCritters(0,(0x03),critters);
+			for(i=0;i<=critters.length();i++)
+			{
+				string head=(critters[i].IsPlayer()?critters[i].Name:" ");
+				string name=critters[i].Name;
+				string NameStr;
+				uint NameColor;
+				uint ContourColor;
+				int hp_proc;
+				ItemCl@weapon=critters[i].GetItem(0,(1));
+				ItemCl@armor=critters[i].GetItem(0,(3)); 
+				
+				if((@critters[i]!=null)&&critters[i].IsLife())
+				{
+					hp_proc=critters[i].Stat[(72)]*100/critters[i].Stat[(7)];
+					critters[i].NameOnHead=name+"\n"+hp_proc+"%";
+					if(hp_proc<1)
+					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF))))+" "+hp_proc+"%";
+					else if(hp_proc<25)
+					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0xC8)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF))))+" "+hp_proc+"%";
+					else if(hp_proc<50)
+					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0xAA)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF))))+" "+hp_proc+"%";
+					else if(hp_proc<=75)
+					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF))))+" "+hp_proc+"%";
+					else if(hp_proc<=100)
+					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF))))+" "+hp_proc+"%";
+				}
+				else if((@critters[i]!=null)&&!critters[i].IsLife()){
+					critters[i].NameOnHead=name+" (dead)";
+				}
+			}
+			
+		}
+		
+		if(__HelpInfo)
+		{
+			
+			string aboutText=
+			"FOnline "+(__Singleplayer?"Singleplayer":"")+"\n"+
+			"by Gamers for Gamers\n"+
+			"version "+CustomCall("Version")+"\n"+
+			"\n"+
+			"Traffic, bytes:\n"+
+			"Send: "+CustomCall("BytesSend")+"\n"+
+			"Receive: "+CustomCall("BytesReceive")+"\n"+
+			"Sum: "+(CustomCall("BytesSend").toInt()+CustomCall("BytesReceive").toInt())+"\n"+
+			"\n"+
+			"FPS: "+__FPS+" ("+(!__VSync?""+abs(__FixedFPS):"VSync")+(!__VSync&&__FixedFPS<0?", sleep":"")+")\n"+
+			"Ping: "+__Ping+"\n"+
+			"\n"+
+			"Sound: "+__SoundVolume+"\n"+
+			"Music: "+__MusicVolume+"\n";
+			if(__DebugInfo)
+			{
+				aboutText+="\n"+
+				"Focused object: "+(GUI_GetFocusedObject()!is null?GUI_GetFocusedObject().Name:"None")+"\n"+
+				"Pressed object: "+(GUI_GetPressedObject()!is null?GUI_GetPressedObject().Name:"None")+"\n"+
+				"Hovered object: "+(GUI_GetHoveredObject()!is null?GUI_GetHoveredObject().Name:"None");
+			}
+			DrawText(aboutText,30,30,__ScreenWidth,__ScreenHeight,(uint((0xFF<<24)|(((187)&0xFF)<<16)|(((187)&0xFF)<<8)|((187)&0xFF))),(8),0); 
+			
+			DrawText(GetMsgStr((3),(2000000000)),0,0,__ScreenWidth,__ScreenHeight,((uint((0xFF<<24)|(((0xFF)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0xFF)&0xFF)))),((5)),(0x0004)|(0x0008));
+		} 
+		
+		if(__MapZooming&&__SpritesZoomMin!=__SpritesZoomMax)
+		{
+			string@zoomText=GetMsgStr((3),(260));
+			@zoomText=ReplaceText(zoomText,"%d",""+int(1.0/__SpritesZoom*100.0));
+			@zoomText=ReplaceText(zoomText,"%%","%");
+			DrawText(zoomText,0,0,__ScreenWidth,__ScreenHeight,((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))),(8),(0x0004)|(0x0008));
+		}
+	}
+	else if(layer==4)
+	{
+		GUI_EngineCallback_DrawCursor();
+	}
+	else if(layer==100&&__GmapActive)
+	{          
+		
+	}
+}  
+
+void render_map()
+{
+	
+}  
+
+void critter_in(CritterCl&cr)
+{
+	
+	cr.NameColor=((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF))));
+	cr.ContourColor=(cr.IsPlayer()?((uint((0xFF<<24)|(((150)&0xFF)<<16)|(((150)&0xFF)<<8)|((0)&0xFF)))):((uint((0xFF<<24)|(((150)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF))))); 
+	
+	if(TryColorizeCritter(cr))
+	return; 
+	
+	cr.NameColor=(((((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(16))&0xFF)+(cr.Stat[(100)]/10))<(255)?((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(16))&0xFF)+(cr.Stat[(100)]/10)):(255))<<(16))|((((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(8))&0xFF)+(cr.Stat[(100)]/10))<(255)?((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(8))&0xFF)+(cr.Stat[(100)]/10)):(255))<<(8))|((((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(0))&0xFF)+(cr.Stat[(100)]/10))<(255)?((((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))>>(0))&0xFF)+(cr.Stat[(100)]/10)):(255))<<(0))|((((uint((0xFF<<24)|(((0xAD)&0xFF)<<16)|(((0xAD)&0xFF)<<8)|((0xB9)&0xFF)))))&0xFF000000));                    
+	
+}
+
+void critter_out(CritterCl&cr)
+{
+	
+}  
+
+void item_map_in(ItemCl&item)
+{
+	GUI_EngineCallback_ItemChanged(true);
+}
+
+void item_map_changed(ItemCl&itemNow,ItemCl&itemBefore)
+{
+	GUI_EngineCallback_ItemChanged(true);
+}
+
+void item_map_out(ItemCl&item)
+{
+	GUI_EngineCallback_ItemChanged(true);
+}  
+
+void item_inv_in(ItemCl&item)
+{
+	GUI_EngineCallback_ItemChanged(false);
+}
+
+void item_inv_changed(ItemCl&itemNow,ItemCl&itemBefore)
+{
+	GUI_EngineCallback_ItemChanged(false);
+}
+
+void item_inv_out(ItemCl&item)
+{
+	GUI_EngineCallback_ItemChanged(false);
+}   
+
+bool map_message(string&message,uint16&hexX,uint16&hexY,uint&color,uint&delay)
+{
+	
+	if(color==0xFFFFFFFE)
+	message=".."+message+"..";
+	return true;
+}   
+
+bool in_message(string&message,int&sayType,uint&critterId,uint&delay)
+{
+	CritterCl@cr=GetCritter(critterId);
+	if((@cr!=null)&&PlayerIgnored(cr))
+	return false;
+	return true;
+}  
+
+bool out_message(string&message,int&sayType)
+{
+	string cmdPrefix="~";
+	if(message[0]==cmdPrefix)
+	{
+		message[0]="";
+		
+		if(message=="names")
+		{
+			InitNameColorizing();
+			Message("Names colorizer refreshed.");
+			return false;
+		}
+		
+		if(message=="ignorelist")
+		{
+			InitIgnoreList();
+			Message("Ignore list refreshed.");
+			return false;
+		}
+		
+		if(message=="globalmap")
+		{
+			RunServerScriptUnsafe("nopvp_maps@unsafe_CritterToGlobal",0,0,0,null,null);
+			return false;
+		}
+		
+		if(message.length()>7&&substring(message,0,7)=="ignore ")
+		{
+			IgnorePlayer(cmdPrefix+message);
+			InitIgnoreList();
+			return false;
+		}
+		
+		string separator="#";
+		string result=CustomCall("Command"+separator+message,separator);
+		if(result=="UNKNOWN")
+		{
+			Message("Unknown command.");
+		}
+		else if(result.length()>0)
+		{
+			string@[]@msg=splitEx(result,separator);
+			for(uint i=0;i<msg.length();i++)
+			Message(ReplaceText(result,"<","<"+cmdPrefix));
+		}
+		
+		return false;
+	}
+	
+	if(sayType==(1))
+	{
+		if(message.length()>2&&(message[0]=="/"||message[0]=="."))
+		{
+			string ch=message[1];
+			if(ch=="к"||ch=="К"||ch=="s"||ch=="S")
+			sayType=(3);
+			else if(ch=="э"||ch=="Э"||ch=="e"||ch=="E")
+			sayType=(5);
+			else if(ch=="ш"||ch=="Ш"||ch=="w"||ch=="W")
+			sayType=(7);
+			else if(ch=="с"||ch=="С"||ch=="$")
+			sayType=(9);
+			else if(ch=="р"||ch=="Р"||ch=="r"||ch=="R")
+			sayType=(10);
+			
+			if(sayType!=(1))
+			{
+				message[0]="";
+				message[0]="";
+				while(message[0]==" ")
+				message[0]="";
+			}
+		}
+		else if(
+		message.length()>=4&&message[0]=="*"&&message[1]!="*"&&
+		message[message.length()-2]!="*"&&message[message.length()-1]=="*")
+		{
+			sayType=(5);
+			message=substring(message,1,message.length()-2);
+		}
+	}
+	
+	bool result=false;
+	for(uint i=0,j=message.length();i<j;i++)
+	{
+		if(message[i]!=" ")
+		{
+			result=true;
+			break;
+		}
+	}
+	
+	return result;
+}  
+
+int to_hit(CritterCl&chosen,CritterCl&target,ProtoItem&weapon,uint8 weaponMode)
+{
+	int use=((weaponMode)&0xF);
+	int hitLocation=(((weaponMode)>>4)&0xF);
+	if(use>2)
+	return 0;
+	
+	if(target.IsDead())
+	return 0;
+	if(!chosen.IsLife())
+	return 0;
+	
+	ItemCl@realWeapon=chosen.GetItem(0,(1));
+	ProtoItem@ammo=null;
+	
+	if((@realWeapon!=null)&&((use)==0?weapon.Weapon_Round_0:((use)==1?weapon.Weapon_Round_1:((use)==2?weapon.Weapon_Round_2:0)))>0)
+	{
+		if(realWeapon.AmmoCount==0)
+		return 0;
+		@ammo=GetProtoItem(realWeapon.AmmoPid);
+	}
+	
+	uint skillNum=((use)==0?weapon.Weapon_Skill_0:((use)==1?weapon.Weapon_Skill_1:((use)==2?weapon.Weapon_Skill_2:0)));
+	int wpnMaxDist=((use)==0?weapon.Weapon_MaxDist_0:((use)==1?weapon.Weapon_MaxDist_1:((use)==2?weapon.Weapon_MaxDist_2:0)));
+	if(skillNum==(205))
+	wpnMaxDist=(((wpnMaxDist)<(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))))?(wpnMaxDist):(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))));
+	
+	int dist=GetCrittersDistantion(chosen,target);
+	if(dist>wpnMaxDist)
+	return 0;
+	
+	int toHit=int(chosen.Skill[skillNum]);
+	int weaponPerk=weapon.Weapon_Perk;
+	int blockers=0;
+	
+	if(skillNum!=(203)&&skillNum!=(204))
+	{
+		
+		int distmod1=2;
+		int distmod2=0;
+		if(weaponPerk==(1))
+		distmod1=4;
+		else if(weaponPerk==(5))
+		{
+			distmod1=5;
+			distmod2=8;
+		}
+		
+		int perception=chosen.Stat[(1)];
+		int acc=dist;
+		
+		if(dist<distmod2)
+		acc+=distmod2;
+		else
+		{
+			if(chosen.IsPlayer())
+			acc-=(perception-2)*distmod1;
+			else
+			acc-=perception*distmod1;
+		}
+		
+		if(-2*perception>acc)
+		acc=-2*perception;
+		
+		acc-=2*chosen.Perk[(315)];
+		
+		if(acc>=0)
+		{
+			if(chosen.Damage[(502)]!=0)
+			acc*=-12;
+			else
+			acc*=-4;
+		}
+		else
+		acc*=-4;
+		
+		toHit+=acc;
+		
+		blockers=GetCrittersPath(chosen.HexX,chosen.HexY,target.HexX,target.HexY,0.0f,dist,(0x01),null);
+		if(!target.IsKnockout())
+		blockers--;
+		toHit-=10*blockers;
+	}
+	
+	if(!(weapon.Weapon_IsUnarmed)&&chosen.Trait[(553)]!=0&&(@realWeapon!=null))
+	toHit+=((((weapon.Flags)&((0x00000080)))!=0)?-40:20);
+	
+	int handlingStrength=chosen.Stat[(0)];
+	int reqStrength=weapon.Weapon_MinStrength;
+	if(chosen.Perk[(407)]!=0)
+	handlingStrength+=3;
+	if(handlingStrength<reqStrength)
+	toHit-=(reqStrength-handlingStrength)*20;
+	if(weaponPerk==(2))
+	toHit+=20;
+	
+	int acmod=target.Stat[(9)];
+	if((@ammo!=null))
+	acmod+=ammo.Ammo_ACMod;
+	if(acmod>0)
+	toHit-=acmod;  
+	
+	if(chosen.Damage[(502)]!=0)
+	toHit-=25;
+	if(chosen.Perk[(440)]!=0&&((__Hour)>=22||(__Hour)<=6))
+	toHit+=13;
+	if(target.IsKnockout())
+	toHit+=40;
+	toHit+=target.GetMultihex()*15;
+	
+	int hitMod=GetHitAim(hitLocation);
+	if(skillNum==(204)||skillNum==(203))
+	hitMod/=2;
+	toHit-=hitMod;
+	toHit=(((toHit)>(95))?(95):(((toHit)<(5))?(5):(toHit)));
+	
+	return toHit;
+}
+
+uint GetHitAim(int hitLocation)
+{
+	switch(hitLocation)
+	{
+		case(0):
+		break;
+		case(9):
+		break;
+		case(4):
+		return __HitAimTorso;
+		case(7):
+		return __HitAimEyes;
+		case(1):
+		return __HitAimHead;
+		case(2):
+		case(3):
+		return __HitAimArms;
+		case(8):
+		return __HitAimGroin;
+		case(5):
+		case(6):
+		return __HitAimLegs;
+		default:
+		break;
+	}
+	return 0;
+}  
+
+void hit_aim(uint8&aim)
+{}  
+
+void combat_result(uint[]&data)
+{
+	uint datalen=data.length();
+	if(datalen==0)
+	return;
+	if(data[0]!=datalen)
+	return;
+	
+	uint current=1;
+	
+	while(current<datalen)
+	{
+		int damage=-1;
+		uint effect=0;
+		uint loc=0;
+		int message=-1;
+		
+		uint mode=data[current++];
+		uint who=data[current++];
+		uint who2;
+		CritterCl@originalTarget;
+		
+		CritterCl@cr=GetCritter(who);
+		CritterCl@chosen=GetChosen();
+		CritterCl@trueTarget=null;
+		
+		bool self=(who==GetChosen().Id);
+		
+		string name="error0";
+		if((@cr!=null))
+		{
+			if(!self)
+			name=cr.Name;
+			else
+			name=GetMsgStr((5),chosen.Stat[(71)]==(0)?506:556);
+		}
+		
+		uint offset;
+		if(self)
+		{
+			if(cr.Stat[(71)]==(0))
+			offset=506;
+			else
+			offset=556;
+		}
+		else
+		{
+			if(cr.Stat[(71)]==(0))
+			offset=606;
+			else
+			offset=706;
+		}
+		
+		string result; 
+		
+		switch(mode)
+		{
+			case(2):
+			effect=data[current++];
+			result=GetMsgStr((5),offset+8);
+			result=ReplaceText(result,"%s",name);
+			break;
+			case(3):
+			effect=data[current++];
+			damage=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?28:27));
+			result=ReplaceText(result,"%s",name);
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(4):
+			case(8):
+			damage=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?7:(damage!=0?17:21)));
+			result=ReplaceText(result,"%s",name);
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(5):
+			case(9):
+			loc=data[current++];
+			damage=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?6:(damage!=0?16:20)));
+			result=ReplaceText(result,"%s",name);
+			result=ReplaceText(result,"%s",GetMsgStr((5),1000+cr.CrTypeAlias*10+loc-1));
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(6):
+			damage=data[current++];
+			effect=data[current++];
+			message=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?14:(damage!=0?18:22)));
+			result=ReplaceText(result,"%s",name);
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(7):
+			loc=data[current++];
+			damage=data[current++];
+			effect=data[current++];
+			message=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?5:(damage!=0?15:19)));
+			result=ReplaceText(result,"%s",name);
+			result=ReplaceText(result,"%s",GetMsgStr((5),1000+cr.CrTypeAlias*10+loc-1));
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(10):
+			damage=data[current++];
+			message=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?14:(damage!=0?18:22)));
+			result=ReplaceText(result,"%s",name);
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(11):
+			loc=data[current++];
+			damage=data[current++];
+			message=data[current++];
+			result=GetMsgStr((5),offset+(damage>1?5:(damage!=0?15:19)));
+			result=ReplaceText(result,"%s",name);
+			result=ReplaceText(result,"%s",GetMsgStr((5),1000+cr.CrTypeAlias*10+loc-1));
+			if(damage>1)
+			result=ReplaceText(result,"%d",damage);
+			break;
+			case(12):
+			who2=data[current++]; 
+			
+			@trueTarget=GetCritter(who2);
+			if(self)
+			{
+				
+				result=GetMsgStr((5),cr.Stat[(71)]==(0)?608:708);
+				string nameTrue="error1";
+				if((@trueTarget!=null))
+				nameTrue=trueTarget.Name;
+				result=ReplaceText(result,"%s",nameTrue);
+			}
+			else
+			{
+				
+				result=GetMsgStr((5),offset+3);
+				if(who2==GetChosen().Id)
+				{
+					result=ReplaceText(result,"%s",GetMsgStr((5),chosen.Stat[(71)]==(0)?506:556));
+				}
+				else
+				{
+					string nameTrue="error1";
+					if((@trueTarget!=null))
+					nameTrue=trueTarget.Name;
+					result=ReplaceText(result,"%s",nameTrue);
+				}
+				result=ReplaceText(result,"%s",name);
+			}
+			break;
+			case(1):
+			result=GetMsgStr((5),offset+9);
+			result=ReplaceText(result,"%s",name);
+			break;
+			case(13):
+			result=GetMsgStr((5),offset+9);
+			result=ReplaceText(result,"%s",name);
+			result+=GetMsgStr((5),108)+GetMsgStr((5),offset-306+20);
+			default:
+			break;
+		}
+		
+		bool isVerbose=(__CombatMessagesType==0);
+		string@[]ext;
+		
+		if(message!=-1&&isVerbose)
+		{
+			result+=GetMsgStr((5),message);
+		}
+		else if(effect!=0)
+		{
+			offset-=306;
+			if(mode>(3))
+			{
+				if((((effect)&((0x00000001)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+0));
+				if((((effect)&((0x00000002)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+1));
+				if((((effect)&((0x00000004)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+2));
+				if((((effect)&((0x00000008)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+3));
+				if((((effect)&((0x00000010)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+4));
+				if((((effect)&((0x00000020)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+5));
+				if((((effect)&((0x00000040)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+6)); 
+				
+				if((((effect)&((0x00000800)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+11));
+				if((((effect)&((0x00004000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+14));
+				if((((effect)&((0x00008000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+15));
+				if((((effect)&((0x00200000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+21));
+			}
+			else
+			{
+				if((((effect)&((0x00000002)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+1));
+				
+				if((((effect)&((0x00001000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+12));
+				if((((effect)&((0x00002000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+13));
+				if((((effect)&((0x00004000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+14));
+				if((((effect)&((0x00008000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+15));
+				if((((effect)&((0x00010000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+16));
+				if((((effect)&((0x00020000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+17));
+				if((((effect)&((0x00040000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+18));
+				if((((effect)&((0x00080000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+19));
+				
+				if((((effect)&((0x00200000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+21));
+				if((((effect)&((0x10000000)))!=0))
+				ext.insertLast(@GetMsgStr((5),offset+7));
+			}
+			offset+=306;
+		}
+		
+		if(8<=mode&&mode<=11&&(!isVerbose||message==-1))
+		ext.insertLast(@GetMsgStr((5),offset+7-306));
+		
+		for(uint m=0,n=ext.length();m<n;m++)
+		{
+			if(m==n-1)
+			result+=GetMsgStr((5),108);
+			else
+			result+=", ";
+			
+			result+=ext[m];
+		}
+		
+		result+=".";
+		
+		Message(result,(2));
+		
+		if(8<=mode&&mode<=11&&isVerbose&&message!=-1)
+		Message(name+" "+GetMsgStr((5),offset+7-306)+".",(2)); 
+		
+		if(__DamageHitDelay>0&&damage>0)
+		MapMessage("-"+damage,cr.HexX,cr.HexY,__DamageHitDelay,0xFFC80000,true,Random(-5,5),-20);
+	}
+}   
+
+string generic_description(int descType,int&offsX,int&offsY)
+{
+	CritterCl@chosen=GetChosen();
+	if(not(@chosen!=null))
+	return"";
+	string result;
+	
+	if(descType==(0))
+	{
+		result+=chosen.Name+"\n";
+		result+="---------------------\n";
+		result+=GetMsgStr((3),(400+((0))))+"\n";
+		result+=GetMsgStr((3),(400+((1))))+"\n";
+		result+=GetMsgStr((3),(400+((2))))+"\n";
+		result+=GetMsgStr((3),(400+((3))))+"\n";
+		result+=GetMsgStr((3),(400+((4))))+"\n";
+		result+=GetMsgStr((3),(400+((5))))+"\n";
+		result+=GetMsgStr((3),(400+((6))))+"\n";
+		result+="---------------------\n";
+		
+		ItemCl@weaponMain=chosen.GetItem(0,(1));
+		if((@weaponMain!=null))
+		{
+			int use=((weaponMain.Mode)&0xF);
+			if(use>2)
+			use=0;
+			
+			result+=GetMsgStr((2),(weaponMain.GetProtoId()*100+weaponMain.Info))+"\n";
+			
+			if(weaponMain.GetType()==(3))
+			{
+				result+=GetMsgStr((3),(415))+" ";
+				result+=((use)==0?weaponMain.Proto.Weapon_DmgMin_0:((use)==1?weaponMain.Proto.Weapon_DmgMin_1:((use)==2?weaponMain.Proto.Weapon_DmgMin_2:0)))+"-";
+				int wpnMaxDmg=((use)==0?weaponMain.Proto.Weapon_DmgMax_0:((use)==1?weaponMain.Proto.Weapon_DmgMax_1:((use)==2?weaponMain.Proto.Weapon_DmgMax_2:0)));
+				if((((use)==0?weaponMain.Proto.Weapon_Skill_0:((use)==1?weaponMain.Proto.Weapon_Skill_1:((use)==2?weaponMain.Proto.Weapon_Skill_2:0)))==(203)||((use)==0?weaponMain.Proto.Weapon_Skill_0:((use)==1?weaponMain.Proto.Weapon_Skill_1:((use)==2?weaponMain.Proto.Weapon_Skill_2:0)))==(204)))
+				wpnMaxDmg+=chosen.Stat[(10)];
+				result+=wpnMaxDmg;
+				
+				if(((use)==0?weaponMain.Proto.Weapon_MaxDist_0:((use)==1?weaponMain.Proto.Weapon_MaxDist_1:((use)==2?weaponMain.Proto.Weapon_MaxDist_2:0)))>1)
+				{
+					result+=" "+GetMsgStr((3),(416))+" ";
+					int wpnMaxDist=((use)==0?weaponMain.Proto.Weapon_MaxDist_0:((use)==1?weaponMain.Proto.Weapon_MaxDist_1:((use)==2?weaponMain.Proto.Weapon_MaxDist_2:0)));
+					if(((use)==0?weaponMain.Proto.Weapon_Skill_0:((use)==1?weaponMain.Proto.Weapon_Skill_1:((use)==2?weaponMain.Proto.Weapon_Skill_2:0)))==(205))
+					wpnMaxDist=(((wpnMaxDist)<(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))))?(wpnMaxDist):(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))));
+					result+=wpnMaxDist;
+				}
+				result+="\n";
+				
+				if(weaponMain.Proto.Weapon_MaxAmmoCount>0)
+				{
+					result+=GetMsgStr((3),(417))+" ";
+					result+=weaponMain.AmmoCount+"/";
+					result+=weaponMain.Proto.Weapon_MaxAmmoCount+" ";
+					result+=GetMsgStr((3),(10900+(weaponMain.Proto.Weapon_Caliber)));
+				}
+				result+="\n";
+			}
+			else
+			{
+				result+="\n\n";
+			}
+		}
+		else
+		{
+			
+			uint8 mode=0;
+			ProtoItem@unarmed=chosen.GetSlotProto((1),mode);
+			result+=GetMsgStr((3),(414))+"\n";
+			result+=GetMsgStr((3),(424))+" ";
+			result+=((((mode)&0xF))==0?unarmed.Weapon_DmgMin_0:((((mode)&0xF))==1?unarmed.Weapon_DmgMin_1:((((mode)&0xF))==2?unarmed.Weapon_DmgMin_2:0)))+"-";
+			result+=(((((mode)&0xF))==0?unarmed.Weapon_DmgMax_0:((((mode)&0xF))==1?unarmed.Weapon_DmgMax_1:((((mode)&0xF))==2?unarmed.Weapon_DmgMax_2:0)))+chosen.Stat[(10)]);
+			result+="\n\n";
+		}
+		result+="---------------------\n";
+		
+		ItemCl@weaponExt=chosen.GetItem(0,(2));
+		if((@weaponExt!=null))
+		{
+			int use=((weaponExt.Mode)&0xF);
+			if(use>2)
+			use=0;
+			
+			result+=GetMsgStr((2),(weaponExt.GetProtoId()*100+weaponExt.Info))+"\n";
+			
+			if(weaponExt.GetType()==(3))
+			{
+				result+=GetMsgStr((3),(415))+" ";
+				result+=((use)==0?weaponExt.Proto.Weapon_DmgMin_0:((use)==1?weaponExt.Proto.Weapon_DmgMin_1:((use)==2?weaponExt.Proto.Weapon_DmgMin_2:0)))+"-";
+				int wpnMaxDmg=((use)==0?weaponExt.Proto.Weapon_DmgMax_0:((use)==1?weaponExt.Proto.Weapon_DmgMax_1:((use)==2?weaponExt.Proto.Weapon_DmgMax_2:0)));
+				if((((use)==0?weaponExt.Proto.Weapon_Skill_0:((use)==1?weaponExt.Proto.Weapon_Skill_1:((use)==2?weaponExt.Proto.Weapon_Skill_2:0)))==(203)||((use)==0?weaponExt.Proto.Weapon_Skill_0:((use)==1?weaponExt.Proto.Weapon_Skill_1:((use)==2?weaponExt.Proto.Weapon_Skill_2:0)))==(204)))
+				wpnMaxDmg+=chosen.Stat[(10)];
+				result+=wpnMaxDmg;
+				if(((use)==0?weaponExt.Proto.Weapon_MaxDist_0:((use)==1?weaponExt.Proto.Weapon_MaxDist_1:((use)==2?weaponExt.Proto.Weapon_MaxDist_2:0)))>1)
+				{
+					result+=" "+GetMsgStr((3),(416))+" ";
+					int wpnMaxDist=((use)==0?weaponExt.Proto.Weapon_MaxDist_0:((use)==1?weaponExt.Proto.Weapon_MaxDist_1:((use)==2?weaponExt.Proto.Weapon_MaxDist_2:0)));
+					if(((use)==0?weaponExt.Proto.Weapon_Skill_0:((use)==1?weaponExt.Proto.Weapon_Skill_1:((use)==2?weaponExt.Proto.Weapon_Skill_2:0)))==(205))
+					wpnMaxDist=(((wpnMaxDist)<(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))))?(wpnMaxDist):(3*(((int(10))<(chosen.Stat[(0)]+2*chosen.Perk[(336)]))?(int(10)):(chosen.Stat[(0)]+2*chosen.Perk[(336)]))));
+					result+=wpnMaxDist;
+				}
+				result+="\n";
+				
+				if(weaponExt.Proto.Weapon_MaxAmmoCount>0)
+				{
+					result+=GetMsgStr((3),(417))+" ";
+					result+=weaponExt.AmmoCount+"/";
+					result+=weaponExt.Proto.Weapon_MaxAmmoCount+" ";
+					result+=GetMsgStr((3),(10900+(weaponExt.Proto.Weapon_Caliber)));
+				}
+				result+="\n";
+			}
+			else
+			{
+				result+="\n\n";
+			}
+		}
+		else
+		{
+			
+			uint8 mode=0;
+			ProtoItem@unarmed=chosen.GetSlotProto((2),mode);
+			result+=GetMsgStr((3),(414))+"\n";
+			result+=GetMsgStr((3),(424))+" ";
+			result+=((((mode)&0xF))==0?unarmed.Weapon_DmgMin_0:((((mode)&0xF))==1?unarmed.Weapon_DmgMin_1:((((mode)&0xF))==2?unarmed.Weapon_DmgMin_2:0)))+"-";
+			result+=(((((mode)&0xF))==0?unarmed.Weapon_DmgMax_0:((((mode)&0xF))==1?unarmed.Weapon_DmgMax_1:((((mode)&0xF))==2?unarmed.Weapon_DmgMax_2:0)))+chosen.Stat[(10)]);
+			result+="\n\n";
+		}
+		
+		result+=GetMsgStr((3),(420))+" ";
+		result+=(chosen.ItemsWeight()/1000)+"/";
+		result+=(chosen.Stat[(11)]/1000)+".";
+	}
+	else if(descType==(1))
+	{
+		offsX=23;
+		result+="\n\n";
+		result+=chosen.Stat[(0)]+"\n";
+		result+=chosen.Stat[(1)]+"\n";
+		result+=chosen.Stat[(2)]+"\n";
+		result+=chosen.Stat[(3)]+"\n";
+		result+=chosen.Stat[(4)]+"\n";
+		result+=chosen.Stat[(5)]+"\n";
+		result+=chosen.Stat[(6)];
+	}
+	else if(descType==(2))
+	{
+		offsX=39;
+		result+="\n\n";
+		result+=GetMsgStr((3),(407))+" ";
+		result+=chosen.Stat[(72)]+"/"+chosen.Stat[(7)]+"\n";
+		result+=GetMsgStr((3),(408))+" ";
+		result+=chosen.Stat[(9)]+"\n";
+		result+=GetMsgStr((3),(409))+"\n";
+		result+=GetMsgStr((3),(410))+"\n";
+		result+=GetMsgStr((3),(411))+"\n";
+		result+=GetMsgStr((3),(412))+"\n";
+		result+=GetMsgStr((3),(413));
+	}
+	else if(descType==(3))
+	{
+		offsX=103;
+		result+="\n\n\n\n";
+		result+=chosen.Stat[(16)]+"/"+chosen.Stat[(23)]+"%\n";
+		result+=chosen.Stat[(17)]+"/"+chosen.Stat[(24)]+"%\n";
+		result+=chosen.Stat[(18)]+"/"+chosen.Stat[(25)]+"%\n";
+		result+=chosen.Stat[(19)]+"/"+chosen.Stat[(26)]+"%\n";
+		result+=chosen.Stat[(22)]+"/"+chosen.Stat[(29)]+"%";
+	}
+	
+	return result;
+}  
+
+string item_description(ItemCl&item,int lookType)
+{
+	
+	if(not IsMsgStr((2),(item.GetProtoId()*100+item.Info)+(lookType!=(1)?1:0)))
+	return GetMsgStr((3),(10010));
+	
+	string result; 
+	
+	if(lookType==(5))
+	{
+		string fuel=GetMsgStr((3),(561));
+		fuel=ReplaceText(fuel,"VALUE",item.Charge/100);
+		fuel=ReplaceText(fuel,"MAX_VALUE",item.Proto.Car_TankVolume/100);
+		string deterioration=GetMsgStr((3),(562));
+		deterioration=ReplaceText(deterioration,"VALUE",item.Deterioration*100/item.Proto.Car_MaxDeterioration);
+		result=fuel+"\n"+deterioration;
+	}
+	
+	else if(lookType==(1))
+	{
+		result+=ReplaceText(GetMsgStr((3),(10000)),"NAME",GetMsgStr((2),(item.GetProtoId()*100+item.Info)));
+	}
+	
+	else
+	{
+		if(lookType==(4))
+		result+=GetMsgStr((2),(item.GetProtoId()*100+item.Info))+"\n";
+		
+		if(item.GetProtoId()==(58)&&item.HolodiskNumber!=0)
+		result+=GetMsgStr((7),((item.HolodiskNumber)*10));
+		else
+		result+=GetMsgStr((2),(item.GetProtoId()*100+item.Info)+1);
+		
+		if(lookType!=(2))
+		{
+			
+			result+="\n"+ReplaceText(GetMsgStr((3),(435)),"VALUE",item.Proto.Weight*item.GetCount()); 
+			
+			if(item.GetType()==(3)&&item.Proto.Weapon_MaxAmmoCount>0)
+			{
+				result+="\n";
+				string str=GetMsgStr((3),(434));
+				str=ReplaceText(str,"VALUE",item.AmmoCount);
+				str=ReplaceText(str,"MAX_VALUE",item.Proto.Weapon_MaxAmmoCount);
+				str=ReplaceText(str,"AMMO",GetMsgStr((3),(10900+(item.Proto.Weapon_Caliber))));
+				result+=str;
+			} 
+			
+			if(item.IsDeteriorable())
+			{
+				uint8 brokenFlags=item.BrokenFlags;
+				uint8 brokenCount=item.BrokenCount;
+				uint16 deterioration=item.Deterioration; 
+				
+				result+="\n";
+				if((((brokenFlags)&((0x08)))!=0))
+				result+=GetMsgStr((3),(506));
+				else if((((brokenFlags)&((0x01)))!=0))
+				result+=GetMsgStr((3),(503));
+				else if((((brokenFlags)&((0x02)))!=0))
+				result+=GetMsgStr((3),(504));
+				else if((((brokenFlags)&((0x04)))!=0))
+				result+=GetMsgStr((3),(505));
+				else
+				result+=ReplaceText(GetMsgStr((3),(500)),"VALUE",deterioration*100/(10000)); 
+				
+				if((((brokenFlags)&((0x10)))!=0))
+				result+="\n"+GetMsgStr((3),(501)); 
+				
+				if((((brokenFlags)&((0x20)))!=0))
+				result+="\n"+GetMsgStr((3),(502)); 
+				
+				CritterCl@chosen=GetChosen();
+				if((@chosen!=null)&&chosen.Perk[(332)]!=0)
+				result+="\n"+ReplaceText(GetMsgStr((3),(507)),"VALUE",brokenCount);
+			} 
+			
+			if(item.GetType()==(7))
+			result+="\n"+ReplaceText(GetMsgStr((3),(550)),"KEY_ID",item.LockerId);
+		}
+	} 
+	
+	if(item.Lexems!="")
+	return FormatTags(result,item.Lexems);
+	return result;
+}  
+
+string critter_description(CritterCl&cr,int lookType)
+{
+	string result;
+	int gender=cr.Stat[(71)]; 
+	
+	if(cr.IsPlayer())
+	{
+		
+		if(lookType==(0))
+		{
+			result=cr.Name;
+		}
+		
+		else if(lookType==(1))
+		{
+			result+=GetMsgStr((3),(11000+(gender)*1000));
+			result+=cr.Name;
+			result+=".";
+		}
+		
+		else
+		{
+			result+=GetMsgStr((3),(11000+(gender)*1000)); 
+			
+			uint ageStr=GetMsgStrNumUpper((3),(11100+((cr.Stat[(70)])>99?99:(cr.Stat[(70)]))+(gender)*1000));
+			if(ageStr!=0)
+			result+=GetMsgStr((3),ageStr);
+			else
+			result+=cr.Name;
+			result+=".";                                                                  
+			
+		}
+	}
+	
+	else
+	{
+		uint dlgId=cr.Stat[(104)];
+		uint16 npcPid=cr.Pid;
+		bool defaultText=false;
+		
+		if(lookType==(0))
+		{
+			result=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+100:((npcPid)*10)));
+		}
+		
+		else if(lookType==(1))
+		{
+			if(cr.IsLife()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+200:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+200:((npcPid)*10+1)));
+			else if(cr.IsKnockout()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+220:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+220:((npcPid)*10+1)));
+			else if(cr.IsDead()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+240:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+240:((npcPid)*10+1)));
+			else
+			defaultText=true;
+		}
+		
+		else
+		{
+			if(cr.IsLife()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+210:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+210:((npcPid)*10+1)));
+			else if(cr.IsKnockout()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+230:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+230:((npcPid)*10+1)));
+			else if(cr.IsDead()&&IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+250:((npcPid)*10+1))))
+			result+=GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+250:((npcPid)*10+1)));
+			else
+			defaultText=true;
+		}
+		
+		if(defaultText)
+		{
+			
+			if(IsMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+100:((npcPid)*10))))
+			{
+				if(cr.IsLife())
+				result+=ReplaceText(GetMsgStr((3),(11010)),"NAME",GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+100:((npcPid)*10))));
+				else if(cr.IsKnockout())
+				result+=ReplaceText(GetMsgStr((3),(11011)),"NAME",GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+100:((npcPid)*10))));
+				else if(cr.IsDead())
+				result+=ReplaceText(GetMsgStr((3),(11012)),"NAME",GetMsgStr((1),((dlgId)!=0?100000+(dlgId)*1000+100:((npcPid)*10))));
+			}
+			
+			else
+			{
+				result+=GetMsgStr((3),(11014));
+			}
+		}
+	} 
+	
+	if(lookType==(2))
+	{
+		if(result.length()>0&&result[result.length()-1]!=".")
+		result+=".";
+		result+=" ";
+		
+		CritterCl@chosen=GetChosen();
+		if((@chosen!=null)&&chosen.Perk[(301)]!=0)
+		{
+			result+=GetMsgStr((3),(12530+(gender)));
+			result=ReplaceText(result,"CUR",cr.Stat[(72)]);
+			result=ReplaceText(result,"MAX",cr.Stat[(7)]);
+			
+			ItemCl@item=cr.GetItem(0,(1));
+			if((cr.Damage[(502)]!=0||cr.Damage[(503)]!=0||cr.Damage[(504)]!=0||cr.Damage[(505)]!=0||cr.Damage[(506)]!=0))
+			{
+				if((@item!=null))
+				result+=", ";
+				else
+				result+=GetMsgStr((3),(54));
+				
+				result+=GetMsgStr((3),(12520+(gender)*2+(false?1:0)));
+			}
+			
+			if((@item!=null))
+			{
+				if(item.GetType()==(3))
+				{
+					if(item.Proto.Weapon_MaxAmmoCount==0)
+					{
+						result+=GetMsgStr((3),(12540));
+						result=ReplaceText(result,"WEAPON",GetMsgStr((2),(item.GetProtoId()*100+item.Info)));
+					}
+					else
+					{
+						result+=GetMsgStr((3),(12541));
+						result=ReplaceText(result,"WEAPON",GetMsgStr((2),(item.GetProtoId()*100+item.Info)));
+						result=ReplaceText(result,"CUR",item.AmmoCount);
+						result=ReplaceText(result,"MAX",item.Proto.Weapon_MaxAmmoCount);
+						result=ReplaceText(result,"AMMO",GetMsgStr((3),(10900+(item.Proto.Weapon_Caliber))));
+					}
+				}
+				else
+				{
+					result+=GetMsgStr((3),(12542));
+					result=ReplaceText(result,"MISC",GetMsgStr((2),(item.GetProtoId()*100+item.Info)));
+				}
+			}
+		}
+		else
+		{
+			result+=GetMsgStr((3),(12500+(gender)));
+			
+			int hp_proc=cr.Stat[(72)]*100/cr.Stat[(7)];
+			if(cr.IsDead())
+			result+=GetMsgStr((3),(12510+(0)));
+			else if(hp_proc<34)
+			result+=GetMsgStr((3),(12510+(1)));
+			else if(hp_proc<67)
+			result+=GetMsgStr((3),(12510+(2)));
+			else if(hp_proc<100)
+			result+=GetMsgStr((3),(12510+(3)));
+			else
+			result+=GetMsgStr((3),(12510+(4)));
+			
+			if((cr.Damage[(502)]!=0||cr.Damage[(503)]!=0||cr.Damage[(504)]!=0||cr.Damage[(505)]!=0||cr.Damage[(506)]!=0))
+			{
+				if(hp_proc<90)
+				result+=GetMsgStr((3),(54));
+				result+=GetMsgStr((3),(12520+(gender)*2+(hp_proc>=90?1:0)));
+			}
+		}
+		result+=".";
+	} 
+	
+	if(cr.Lexems!="")
+	return FormatTags(result,cr.Lexems);
+	return result;
+}               
+
+bool get_elevator(uint type,uint[]&data)
+{
+	const string iface="art\\intrface\\";
+	const uint[][]elevators=
+	{  
+		
+		{0,1,4,GetStrHash(iface+"EL_BOS.FRM"),230,284,0,0,0,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),4,11,42,58,91,11,102,58,151,11,162,58,211,11,222,58,271},
+		
+		{0,0,2,GetStrHash(iface+"EL_BOS.FRM"),230,284,GetStrHash(iface+"EL_BOS2.FRM"),0,37,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),2,11,42,58,91,11,102,58,151},
+		
+		{0,1,3,GetStrHash(iface+"EL_MAST1.FRM"),230,284,0,0,0,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),3,11,42,58,91,11,102,58,151,11,162,58,211},
+		
+		{0,3,2,GetStrHash(iface+"EL_MAST1.FRM"),230,284,GetStrHash(iface+"EL_MAST2.FRM"),0,37,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),2,11,42,58,91,11,102,58,151},
+		
+		{0,1,3,GetStrHash(iface+"EL_MIL1.FRM"),231,285,0,0,0,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),3,11,42,58,91,11,102,58,151,11,162,58,211},
+		
+		{0,3,4,GetStrHash(iface+"EL_MIL1.FRM"),231,285,GetStrHash(iface+"EL_MIL2.FRM"),0,37,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),2,11,42,58,91,11,102,58,151},
+		
+		{0,3,3,GetStrHash(iface+"EL_MIL1.FRM"),231,285,GetStrHash(iface+"EL_MIL3.FRM"),0,37,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),3,11,42,58,91,11,102,58,151,11,162,58,211},
+		
+		{0,4,3,GetStrHash(iface+"EL_MIL1.FRM"),231,285,GetStrHash(iface+"EL_MIL4.FRM"),0,37,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),3,11,42,58,91,11,102,58,151,11,162,58,211},
+		
+		{0,1,3,GetStrHash(iface+"EL_VAULT.FRM"),230,284,0,0,0,GetStrHash(iface+"elevator_indicator.frm"),121,41,GetStrHash(iface+"EBUT_IN.FRM"),3,11,42,58,91,11,102,58,151,11,162,58,211},
+	};
+	
+	uint index=(type&0xFFFF);
+	uint currentLevel=(type>>16);
+	
+	if(index>8)
+	return false;
+	data.resize(elevators[index].length());
+	for(uint i=0;i<data.length();i++)
+	data[i]=elevators[index][i];
+	data[0]=currentLevel;
+	return true;
+}  
+
+void _PlayMusic(int pos,int repeat,int,string@musicName,int[]@)
+{
+	PlayMusic(musicName,uint(pos),uint(repeat));
+}
+
+void _PlayVideo(int canStop,int,int,string@videoName,int[]@)
+{
+	PlayVideo(videoName,canStop!=0);
+}  
+
+void _FlushScreen(int fromColor,int toColor,int timeMs,string@,int[]@)
+{
+	FlushScreen(fromColor,toColor,timeMs);
+}
+
+void _QuakeScreen(int noise,int timeMs,int,string@,int[]@)
+{
+	QuakeScreen(noise,timeMs);
+}    
+
+uint item_cost(ItemCl&item,CritterCl&chosen,CritterCl&npc,bool sell)
+{
+	return sell?1:2;
+}  
+
+bool check_perk(CritterCl&cr,uint perk)
+{
+	return PerkCheck(cr,perk);
+}  
+
+void player_data_generate(int[]&params)
+{
+	if(__RegParams is null)
+	{
+		int[]regParams;
+		@__RegParams=regParams;
+		__RegParams.resize((1000));
+		
+		__RegParams[(0)]=5;
+		__RegParams[(1)]=5;
+		__RegParams[(2)]=5;
+		__RegParams[(3)]=5;
+		__RegParams[(4)]=5;
+		__RegParams[(5)]=5;
+		__RegParams[(6)]=5;
+		__RegParams[(70)]=Random((14),(60));
+		__RegParams[(71)]=(0);
+	}
+	
+	params=__RegParams;
+	
+	CritterGenerate(params);   
+	
+}
+
+bool player_data_check(int[]&params)
+{    
+	
+	uint nameError=CheckPlayerName(__RegName);
+	if(nameError!=0)
+	{
+		Message(GetMsgStr((3),nameError));
+		return false;
+	}
+	
+	return CritterGenerateCheck(params);
+}  
+
+void critter_action(bool localCall,CritterCl&cr,int action,int actionExt,ItemCl@item)
+{
+	
+	if(cr.IsChosen()&&not localCall)
+	{
+		switch(action)
+		{
+			case(2):
+			case(3):
+			case(4):
+			case(5):
+			case(6):
+			case(7):
+			case(8):
+			case(9):
+			case(10):
+			case(11):
+			return;
+			default:
+			break;
+		}
+	}
+	
+	uint8 mode=0;
+	const ProtoItem@proto=((@item!=null)?item.Proto:cr.GetSlotProto((1),mode));
+	
+	if((action>=(2)&&action<=(11))||action==(17))
+	cr.Wait(__Breaktime);
+	
+	switch(action)
+	{
+		case(0): 
+		
+		break;
+		case(1): 
+		
+		break;
+		case(2):
+		if(cr.IsLife())
+		{
+			uint8 fromSlot=actionExt;
+			uint8 toSlot=item.CritSlot;
+			
+			cr.ClearAnim();
+			
+			if(toSlot==(1))
+			cr.Animate(0,(20),item);
+			else if(fromSlot==(1))
+			cr.Animate(0,(21),item);
+			else
+			cr.Animate(0,(29));
+		}
+		break;
+		case(3):
+		break;
+		case(4):
+		if(cr.IsLife()&&(@proto!=null))
+		{
+			cr.ClearAnim();
+			
+			if(proto.Type==(3)&&(((proto.Flags)&((0x01000000)))!=0)&&cr.IsAnimAviable(proto.Weapon_Anim1,proto.Weapon_Anim2_0))
+			cr.Animate(proto.Weapon_Anim1,proto.Weapon_Anim2_0,item);
+			else
+			cr.Animate(0,(28),item);
+		}
+		break;
+		case(5):
+		if(cr.IsLife())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,(27));
+		}
+		break;
+		case(6):
+		if(cr.IsLife()&&(@proto!=null))
+		{
+			int use=(actionExt&0xF);
+			int aim=((actionExt>>4)&0xF);
+			bool fail=(((actionExt>>8)&1)!=0);
+			
+			cr.ClearAnim();
+			
+			cr.Animate(0,(22));
+			
+			PlaySound('W','A',((use)==0?proto.Weapon_SoundId_0:((use)==1?proto.Weapon_SoundId_1:((use)==2?proto.Weapon_SoundId_2:0))),use!=1?'1':'2');
+			cr.Animate(0,((use)==0?proto.Weapon_Anim2_0:((use)==1?proto.Weapon_Anim2_1:((use)==2?proto.Weapon_Anim2_2:0))),item);
+			
+			if(fail)
+			cr.Animate(0,(72),item);
+			else
+			cr.Animate(0,(23));
+		}
+		break;
+		case(7):
+		if(cr.IsLife()&&(@proto!=null))
+		{
+			cr.ClearAnim();
+			PlaySound('W','R',proto.Weapon_SoundId_0,'1');
+			cr.Animate(item.Proto.Weapon_Anim1,(30),item);
+		}
+		break;
+		case(8):
+		if(cr.IsLife()&&actionExt!=(208))
+		{
+			cr.ClearAnim();
+			cr.Animate(0,(28));
+		}
+		break;
+		case(9):
+		if(cr.IsLife()&&(@proto!=null))
+		{
+			cr.ClearAnim();
+			cr.Animate(0,proto.GroundLevel?(27):(28));
+		}
+		break;
+		case(10):
+		if(cr.IsLife())
+		{
+			cr.ClearAnim();
+			
+			switch(actionExt)
+			{
+				case 0:
+				cr.Animate(0,(35));
+				break;
+				case 1:
+				cr.Animate(0,(36));
+				break;
+				case 2:
+				cr.Animate(0,(37));
+				break;
+				default:
+				break;
+			}
+		}
+		break;
+		case(11):
+		if(cr.IsLife())
+		{
+			cr.ClearAnim();
+			int transferType=actionExt/10;
+			int directionType=actionExt%10;
+			
+			if(transferType==(2)||transferType==(4))
+			cr.Animate(0,(27));
+			else
+			cr.Animate(0,(28));
+		}
+		break;
+		case(13):
+		if(not cr.IsAnimPlaying()&&cr.IsLife())
+		{
+			cr.Animate(0,actionExt==0?(70):(71));
+		}
+		break;
+		case(14):
+		if(not cr.IsAnimPlaying())
+		{
+			if(cr.IsLife())
+			cr.Animate(0,actionExt==0?(72):(73));
+			else if(cr.IsKnockout())
+			cr.Animate(0,actionExt==0?(90):(91));
+		}
+		else
+		{      
+			
+		}
+		break;
+		case(15):
+		if(cr.IsLife())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,actionExt==0?(72):(73));
+		}
+		else if(cr.IsKnockout())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,actionExt==0?(90):(91));
+		}
+		break;
+		case(16):
+		if(not cr.IsKnockout())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,actionExt);
+		}
+		break;
+		case(17):
+		if(cr.IsKnockout())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,actionExt);
+		}
+		break;
+		case(18):
+		if(cr.IsLife()&&not cr.IsAnimPlaying())
+		{
+			cr.Animate(0,(24));
+		}
+		break;
+		case(19):
+		if(not cr.IsDead())
+		{
+			cr.ClearAnim();
+			cr.Animate(0,actionExt);
+		}
+		break;
+		case(20):
+		break;
+		case(21):
+		break;
+		case(22):
+		break;
+		case(23):
+		break;
+		default:
+		break;
+	}
+}  
+
+void animation2d_process(bool animateStay,CritterCl&cr,uint anim1,uint anim2,ItemCl@item)
+{
+	if(!animateStay)
+	PlayAnimSound(cr.CrType,cr.Stat[(71)],anim1,anim2);
+}  
+
+void animation3d_process(bool animateStay,CritterCl&cr,uint anim1,uint anim2,ItemCl@item)
+{
+	if(!animateStay)
+	PlayAnimSound(cr.CrType,cr.Stat[(71)],anim1,anim2);                                                                                                                                                                                                                                                                
+	
+}                                                                                                                                                                                                                                                                                                                                                                                                        
+
+void items_collection(int collection,ItemCl@[]&items)
+{       
+	
+}  
+
+void filename_logfile(string&filename)
+{
+	filename="messagebox\\"+filename;
+}  
+
+void filename_screenshot(string&filename)
+{
+	filename="screenshots\\"+filename;
+}   
+
+void message_box(string&messageText,int messageType,bool scriptCall)
+{
+	GUIMessageBox@[]messageBoxes;
+	GUI_CollectMessageBoxes(messageBoxes);
+	for(uint i=0;i<messageBoxes.length();i++)
+	messageBoxes[i].AddMessage(messageText,messageType);
+}  
+
+bool check_interface_hit(int x,int y)
+{
+	return GUI_EngineCallback_CheckInterfaceHit(x,y);
+}  
+
+bool get_cont_item(uint&itemId,bool&isEnemy)
+{
+	GUIScreen@screen=GUI_GetActiveScreen();
+	if(screen is null||screen.IsHardcoded||screen.Index!=(10))
+	return false;
+	
+	if(GetCurrentCursor()==(0))
+	{
+		GUIObject@hitObj=screen.FindMouseHit();
+		if(hitObj!is null&&hitObj.Grid!is null)
+		{
+			GUIItemView@itemView=cast<GUIItemView>(hitObj.Grid);
+			if(itemView!is null)
+			{
+				ItemCl@item=itemView.GetItem(hitObj.CellIndex);
+				if(item!is null)
+				{
+					itemId=item.Id;
+					isEnemy=(itemView.CritterId!=0);
+				}
+			}
+		}
+	}
+	
+	return true;
+}  
+
+bool ItemsDragAndDropHandler(GUIObject&obj,GUIObject@target)
+{
+	if(obj.Grid is null)
+	return false;
+	if(target!is null&&target.Grid is null)
+	return false;
+	
+	GUIItemView@objItemView=cast<GUIItemView>(obj.Grid);
+	GUIItemView@targetItemView=(target!is null?cast<GUIItemView>(target.Grid):null);
+	if(objItemView is null)
+	return false;
+	
+	ItemCl@objItem=objItemView.GetItem(obj.CellIndex);
+	ItemCl@targetItem=(targetItemView!is null?targetItemView.GetItem(target.CellIndex):null);
+	if(objItem is null)
+	return false;
+	
+	int objSlot=objItemView.UserData;
+	int targetSlot=(targetItemView!is null?targetItemView.UserData:(255));
+	if(objSlot==targetSlot)
+	return false;
+	
+	if(targetSlot!=(0)&&objItem!is null&&targetItem!is null&&objItem.GetType()==(4)&&targetItem.GetType()==(3))
+	{
+		if(objItem.Proto.Ammo_Caliber==targetItem.Proto.Weapon_Caliber&&
+		(targetItem.AmmoCount<targetItem.Proto.Weapon_MaxAmmoCount||targetItem.AmmoPid!=objItem.GetProtoId()))
+		{
+			uint[]actions;
+			GetChosenActions(actions);
+			uint[]useItemAction={(6),targetItem.Id,0,(1),objItem.Id,(3),0};
+			for(uint i=0;i<useItemAction.length();i++)
+			actions.insertLast(useItemAction[i]);
+			SetChosenActions(actions);
+		}
+	}
+	else if(targetSlot==(255)&&objItem.IsStackable()&&objItem.GetCount()>1)
+	{
+		CustomCall("SplitDrop "+objItem.Id);
+	}
+	else
+	{
+		uint[]actions;
+		GetChosenActions(actions);
+		uint[]useItemAction={(7),objItem.Id,objItem.GetCount(),targetSlot,0,0,0};
+		for(uint i=0;i<useItemAction.length();i++)
+		actions.insertLast(useItemAction[i]);
+		SetChosenActions(actions);
+	}
+	
+	return true;
+}

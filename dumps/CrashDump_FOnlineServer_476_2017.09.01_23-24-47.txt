@@ -1,0 +1,94 @@
+Application
+	Name        FOnlineServer
+	Version     476
+	OS          6.1.7601 (Service Pack 1)
+	Timestamp   2017.09.01 23:24:47
+
+Exception
+	Code      EXCEPTION_ACCESS_VIOLATION
+	Address   0x005F9977
+	Flags     0x0
+	Info      Attempted to read to an 0x0A120000
+
+Thread 'GUI' (188, current)
+	FOnlineServer, fl_utf8decode + 7, fl_utf.c (133)
+	FOnlineServer, Fl_GDI_Graphics_Driver::width + 84, fl_font_win32.cxx (165)
+	FOnlineServer, Fl_Text_Display::string_width + 215, fl_text_display.cxx (2195)
+	FOnlineServer, Fl_Text_Display::handle_vline + 614, fl_text_display.cxx (1760)
+	FOnlineServer, Fl_Text_Display::measure_vline + 88, fl_text_display.cxx (2731)
+	FOnlineServer, Fl_Text_Display::longest_vline + 60, fl_text_display.cxx (267)
+	FOnlineServer, Fl_Text_Display::resize + 1684, fl_text_display.cxx (387)
+	FOnlineServer, Fl_Text_Display::buffer_modified_cb + 636, fl_text_display.cxx (1483)
+	FOnlineServer, Fl_Text_Buffer::call_modify_callbacks + 85, fl_text_buffer.cxx (1314)
+	FOnlineServer, Fl_Text_Buffer::insert + 127, fl_text_buffer.cxx (292)
+	FOnlineServer, UpdateLog + 86, mainserver.cpp (648)
+	FOnlineServer, main + 1189, mainserver.cpp (216)
+	FOnlineServer, WinMain + 402, fl_call_main.c (115)
+	FOnlineServer, __tmainCRTStartup + 282, crt0.c (275)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Thread 'GUIUpdate' (3984)
+	ntdll, NtDelayExecution + 21
+	KERNELBASE, Sleep + 15
+	FOnlineServer, Thread::Sleep + 13, common.cpp (1638)
+	FOnlineServer, GUIUpdate + 17, mainserver.cpp (525)
+	FOnlineServer, ThreadBeginExecution + 44, common.cpp (1546)
+	FOnlineServer, ptw32_threadStart + 119, ptw32_threadstart.c (225)
+	FOnlineServer, _callthreadstartex + 27, threadex.c (314)
+	FOnlineServer, _threadstartex + 100, threadex.c (292)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Thread 'ScriptTimeout' (3248)
+	ntdll, NtDelayExecution + 21
+	KERNELBASE, Sleep + 15
+	FOnlineServer, Thread::Sleep + 13, common.cpp (1638)
+	FOnlineServer, RunTimeout + 1400, script.cpp (1225)
+	FOnlineServer, ThreadBeginExecution + 44, common.cpp (1546)
+	FOnlineServer, ptw32_threadStart + 119, ptw32_threadstart.c (225)
+	FOnlineServer, _callthreadstartex + 27, threadex.c (314)
+	FOnlineServer, _threadstartex + 100, threadex.c (292)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Loaded modules
+	C:\Users\Master\Desktop\Projects\FOnline XT\Server\FOnlineServer.exe (00400000)
+	C:\Windows\SysWOW64\ntdll.dll (77AA0000)
+	C:\Windows\syswow64\kernel32.dll (75940000)
+	C:\Windows\syswow64\KERNELBASE.dll (758F0000)
+	C:\Windows\syswow64\USER32.dll (76C10000)
+	C:\Windows\syswow64\GDI32.dll (76E00000)
+	C:\Windows\syswow64\LPK.dll (753A0000)
+	C:\Windows\syswow64\USP10.dll (77560000)
+	C:\Windows\syswow64\msvcrt.dll (77060000)
+	C:\Windows\syswow64\ADVAPI32.dll (76EE0000)
+	C:\Windows\SysWOW64\sechost.dll (76DE0000)
+	C:\Windows\syswow64\RPCRT4.dll (75CC0000)
+	C:\Windows\syswow64\SspiCli.dll (75340000)
+	C:\Windows\syswow64\CRYPTBASE.dll (75330000)
+	C:\Windows\syswow64\WS2_32.dll (76DA0000)
+	C:\Windows\syswow64\NSI.dll (75B20000)
+	C:\Windows\system32\dbghelp.dll (70850000)
+	C:\Windows\syswow64\PSAPI.DLL (76E90000)
+	C:\Windows\system32\WINMM.dll (738B0000)
+	C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.7601.18837_none_ec86b8d6858ec0bc\COMCTL32.dll (73B70000)
+	C:\Windows\syswow64\SHELL32.dll (75FC0000)
+	C:\Windows\syswow64\SHLWAPI.dll (75DB0000)
+	C:\Windows\syswow64\ole32.dll (77400000)
+	C:\Windows\system32\IMM32.DLL (75F60000)
+	C:\Windows\syswow64\MSCTF.dll (75BC0000)
+	C:\Program Files\Prio\prio32.dll (10000000)
+	C:\Windows\system32\uxtheme.dll (737C0000)
+	C:\Windows\system32\dwmapi.dll (73DE0000)
+	C:\Windows\syswow64\CLBCatQ.DLL (75A50000)
+	C:\Windows\syswow64\OLEAUT32.dll (77600000)
+	C:\Windows\system32\msimtf.dll (75020000)
+	C:\Windows\system32\VERSION.dll (73CF0000)
+	C:\Users\Master\Desktop\Projects\FOnline XT\Server\scripts\fonline_test.dll (75000000)
+
+AngelScript
+	Not available

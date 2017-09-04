@@ -1,0 +1,3545 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+
+shared class Sprite
+{
+	void Load(string&name,int path=(0))
+	{
+		if(name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	}
+	
+	void Load(uint nameHash)
+	{
+		if(nameHash==LoadedNameHash)
+		return;
+		LoadedNameHash=nameHash;
+		
+		Id=LoadSprite(nameHash);
+		RefreshData();
+	}
+	
+	void LoadByIni(string&iniKey,int path)
+	{
+		string@name=GetIfaceIniStr(iniKey);
+		if(@name!=null&&name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	} 
+	
+	void Draw(int x,int y,int w=0,int h=0,int cornerX=-1,int cornerY=-1)
+	{
+		if(Id==0||Hidden)
+		return;
+		
+		if(w==0)
+		w=Width;
+		if(h==0)
+		h=Height;
+		
+		if(AnimPlay)
+		{
+			uint ticksPerFrame=Ticks/FrmCount;
+			int framesPassed=(GetTick()-AnimStartTick)/ticksPerFrame;
+			if(framesPassed>0)
+			{
+				AnimStartTick+=framesPassed*ticksPerFrame;
+				Frame+=(AnimReverse?-framesPassed:framesPassed);
+				
+				bool endAnim=false;
+				if(Frame<=0)
+				{
+					endAnim=true;
+					AnimStartTick-=-Frame*ticksPerFrame;
+					Frame=0;
+				}
+				else if(Frame>=int(FrmCount)-1)
+				{
+					endAnim=true;
+					AnimStartTick-=(Frame+1-FrmCount)*ticksPerFrame;
+					Frame=FrmCount-1;
+				}
+				
+				if(endAnim)
+				{
+					if(AnimLoop)
+					Frame=(AnimReverse?int(FrmCount)-1:0);
+					else
+					AnimPlay=false;
+				}
+			}
+		}
+		
+		if(cornerX==0)
+		x-=w/2;
+		else if(cornerX==1)
+		x-=w;
+		if(cornerY==0)
+		y-=h/2;
+		else if(cornerY==1)
+		y-=h;
+		
+		switch(Layout)
+		{
+			case(1):
+			DrawSpritePattern(Id,Frame,x,y,w,h,Width,Height);
+			break;
+			case(2):
+			DrawSprite(Id,Frame,x+w/2-Width/2,y+h/2-Height/2);
+			break;
+			case(3):
+			DrawSprite(Id,Frame,x,y,w,h);
+			break;
+			case(4):
+			DrawSprite(Id,Frame,x,y,w,h,true);
+			break;
+			default:
+			DrawSprite(Id,Frame,x,y);
+			break;
+		}
+	}
+	
+	void SetFrame(int index)
+	{
+		Frame=index;
+		AnimPlay=false;
+	}
+	
+	void SetFirstFrame()
+	{
+		SetFrame(0);
+	}
+	
+	void SetLastFrame()
+	{
+		SetFrame(int(FrmCount)-1);
+	}
+	
+	void PlayAnimation(bool loop=true,bool reverse=false)
+	{
+		if(Id==0)
+		return;
+		if(AnimPlay&&AnimLoop==loop&&AnimReverse==reverse)
+		return;
+		
+		AnimPlay=true;
+		AnimLoop=loop;
+		AnimReverse=reverse;
+		AnimStartTick=GetTick();
+	}
+	
+	private void RefreshData()
+	{
+		if(Id!=0)
+		{
+			Width=GetSpriteWidth(Id,0);
+			Height=GetSpriteHeight(Id,0);
+			FrmCount=GetSpriteCount(Id);
+			Ticks=GetSpriteTicks(Id);
+		}
+		else
+		{
+			Width=0;
+			Height=0;
+			FrmCount=0;
+			Ticks=0;
+		}
+	}
+	
+	uint Id;
+	int Frame=-1;
+	int Layout=(0);
+	int Width;
+	int Height;
+	uint FrmCount;
+	uint Ticks;
+	bool AnimPlay;
+	bool AnimLoop;
+	bool AnimReverse;
+	uint AnimStartTick;
+	bool Hidden;
+	uint LoadedNameHash;
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
+shared class Serializator
+{
+	uint8[]Array;
+	uint CurPos;
+	uint BufSize;
+	uint DataSize;
+	
+	Serializator()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator(uint approxSize)
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+		GrowBuffer(approxSize);
+	}
+	
+	void GrowBuffer(uint size)
+	{
+		if(size<=BufSize)
+		return;
+		if(BufSize==0)
+		BufSize=1;
+		while(size>BufSize)
+		BufSize*=2;
+		Array.resize(BufSize);
+	}
+	
+	bool Save(string&name)
+	{
+		if(DataSize==0)
+		return false;   
+		
+		SetCacheData(name,Array,DataSize);
+		bool result=true;
+		
+		Clear();
+		return result;
+	}
+	
+	bool Load(string&name)
+	{
+		Clear();    
+		
+		if(not GetCacheData(name,Array))
+		return false;
+		
+		BufSize=Array.length();
+		DataSize=BufSize;
+		return true;
+	}
+	
+	void Clear()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator&SetCurPos(uint pos)
+	{
+		GrowBuffer(pos);
+		CurPos=pos;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Fill(uint8 value,uint length)
+	{
+		GrowBuffer(CurPos+length);
+		for(uint i=0;i<length;i++)
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value?1:0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string&value)
+	{
+		uint len=value.rawLength();
+		GrowBuffer(CurPos+len+1);
+		for(uint i=0;i<len;i++)
+		Array[CurPos++]=value.rawGet(i);
+		Array[CurPos++]=0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		for(uint i=0,j=valuesLen;i<j;i++)
+		len+=values[i].length();
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}                            
+	
+	Serializator&Get(int64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(bool&value)
+	{
+		value=false;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++]==1?true:false;
+		return this;
+	}
+	
+	Serializator&Get(string&str)
+	{
+		uint len=0;
+		for(uint i=CurPos;;i++)
+		{
+			if(i==DataSize)
+			{
+				str="";
+				return this;
+			}
+			if(Array[i]==0)
+			{
+				len=i-CurPos;
+				break;
+			}
+		}
+		str.rawResize(len);
+		for(uint i=0;i<len;i++)
+		str.rawSet(i,Array[CurPos++]);
+		CurPos++;
+		return this;
+	}
+	
+	Serializator&Get(int64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(bool[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(string[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}                             
+	
+};   
+
+funcdef bool DragAndDropHandler(GUIObject&obj,GUIObject@target);                                                                                                                                                                                                                                                        
+
+shared class GUIObject
+{
+	bool get_Active()final{return _ActiveSelf&&(_Parent!is null?_Parent.Active:true);}
+	bool get_ActiveSelf()final{return _ActiveSelf;}
+	string@get_Name()final{return _Name;}
+	int get_PosX()final{return _Parent!is null?_AbsolutePosX-_Parent._AbsolutePosX:_AbsolutePosX;}
+	int get_PosY()final{return _Parent!is null?_AbsolutePosY-_Parent._AbsolutePosY:_AbsolutePosY;}
+	int get_AbsolutePosX()final{return _AbsolutePosX;}
+	int get_AbsolutePosY()final{return _AbsolutePosY;}
+	int get_Width()final{return _Width;}
+	int get_Height()final{return _Height;}
+	int get_Anchor()final{return _Anchor;}
+	int get_Dock()final{return _Dock;}
+	bool get_IsDraggable()final{return _IsDraggable;}
+	bool get_IsNotHittable()final{return _IsNotHittable;}
+	bool get_CheckTransparentOnHit()final{return _CheckTransparentOnHit;}
+	bool get_IsFocused()final{return _IsFocused;}
+	bool get_IsPressed()final{return _IsPressed;}
+	bool get_IsHovered()final{return _IsHovered;}
+	bool get_IsDragged()final{return _IsDragged||(_Parent!is null&&_Parent.IsDragged);}
+	uint get_ChildCount()final{return _Children.length();}
+	GUIObject@get_Parent()final{return _Parent;}
+	GUIScreen@get_Screen()final{return _Parent!is null?_Parent.Screen:cast<GUIScreen>(this);}
+	GUIGrid@get_Grid()final{return _Grid;}
+	uint get_CellIndex()final{return _CellIndex;}
+	
+	bool _ActiveSelf;
+	string@_Name;
+	int _BasePosX;
+	int _BasePosY;
+	int _BaseWidth;
+	int _BaseHeight;
+	int _AbsolutePosX;
+	int _AbsolutePosY;
+	int _Width;
+	int _Height;
+	int _Anchor;
+	int _Dock;
+	bool _IsDragged;
+	bool _IsDraggable;
+	bool _IsNotHittable;
+	bool _CheckTransparentOnHit;
+	bool _DeferredMousePressed;
+	bool _IsFocused;
+	bool _IsPressed;
+	bool _IsHovered;
+	int _PressedButton;
+	int _PressedX;
+	int _PressedY;
+	uint _PressedRepeatTime;
+	GUIObject@_Parent;
+	GUIObject@[]_Children;
+	GUIGrid@_Grid;
+	uint _CellIndex; 
+	
+	void OnConstruct(){}
+	void OnInit(){}
+	void OnShow(){}
+	void OnShow(dictionary@params){}
+	void OnHide(){}
+	void OnAppear(){}
+	void OnAppear(dictionary@params){}
+	void OnDisappear(){}
+	void OnRemove(){}
+	void OnDraw(){}
+	void OnMove(int deltaX,int deltaY){}
+	void OnMouseDown(int button){}
+	void OnMouseUp(int button,bool lost){}
+	void OnMousePressed(int button){}
+	void OnLMousePressed(){}
+	void OnRMousePressed(){}
+	void OnMouseClick(int button){}
+	void OnLMouseClick(){}
+	void OnRMouseClick(){}
+	void OnMouseMove(){}
+	void OnGlobalMouseDown(int button){}
+	void OnGlobalMouseUp(int button){}
+	void OnGlobalMousePressed(int button){}
+	void OnGlobalMouseClick(int button){}
+	void OnGlobalMouseMove(){}
+	void OnInput(){}
+	void OnInput(uint8 key){}
+	void OnInput(string&text){}
+	void OnInput(uint8 key,string@text){}
+	void OnGlobalInput(uint8 key,string@text){}
+	void OnActiveChanged(){}
+	void OnFocusChanged(){}
+	void OnHoverChanged(){}
+	void OnDragChanged(){}
+	void OnResizeGrid(GUIObject@cell,uint cellIndex){}
+	void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex){}
+	
+	void Init(GUIObject@parent)
+	{
+		_ActiveSelf=true;
+		@_Name=reflection::typeof<GUIObject>(this).nameWithoutNamespace;
+		
+		if(_Parent!is null)
+		_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+		@_Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(this);
+		
+		_Construct();
+		
+		GUIScreen@screen=Screen;
+		if(screen!is null&&screen._IsRegistered)
+		_Init();
+		
+		_RefreshPosition();
+	}
+	
+	void _Construct()
+	{
+		OnConstruct();
+	}
+	
+	void _Init()
+	{
+		OnInit();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Init();
+	}
+	
+	void _Show(dictionary@params)
+	{
+		OnShow();
+		OnShow(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Show(params);
+	}
+	
+	void _Hide()
+	{
+		OnHide();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Hide();
+	}
+	
+	void _Appear(dictionary@params)
+	{
+		OnAppear();
+		OnAppear(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Appear(params);
+	}
+	
+	void _Disappear()
+	{
+		OnDisappear();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Disappear();
+	}
+	
+	void Remove()
+	{
+		if(_Parent!is null)
+		{
+			_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+			@_Parent=null;
+		}
+		
+		_Remove();
+		
+		_ActiveSelf=false;
+	}
+	
+	void _Remove()
+	{
+		OnRemove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Remove();
+	}
+	
+	void _Reload(bool reconstruct,bool refreshPosition)
+	{
+		if(reconstruct)
+		OnConstruct();
+		if(refreshPosition)
+		_RefreshPosition();
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Reload(reconstruct,refreshPosition);
+	}
+	
+	void _DrawCallback()
+	{
+		
+		if(_Grid!is null)
+		{
+			GUIItemView@itemView=cast<GUIItemView>(_Grid);
+			if(itemView!is null)
+			OnDrawItem(itemView.GetItem(_CellIndex),this,_CellIndex);
+		} 
+		
+		OnDraw();
+	}
+	
+	void _Draw(bool callCallback)
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._ActiveSelf&&!child._IsDragged)
+			child._Draw(true);
+		}
+	}
+	
+	void Draw(int x,int y)
+	{
+		int dx=x-_AbsolutePosX;
+		int dy=y-_AbsolutePosY;
+		_Move(dx,dy,false,false);
+		_Draw(true);
+		_Move(-dx,-dy,false,false);
+	}
+	
+	void Move(int deltaX,int deltaY)
+	{
+		_Move(deltaX,deltaY,true,true);
+	}
+	
+	void _Move(int deltaX,int deltaY,bool callCallback,bool moveBasePos)
+	{
+		_AbsolutePosX+=deltaX;
+		_AbsolutePosY+=deltaY;
+		
+		if(moveBasePos)
+		{
+			_BasePosX+=deltaX;
+			_BasePosY+=deltaY;
+		}
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Move(deltaX,deltaY,false,false);
+		
+		if(callCallback)
+		_MoveCallback(deltaX,deltaY);
+	}
+	
+	void _MoveCallback(int deltaX,int deltaY)
+	{
+		OnMove(deltaX,deltaY);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._MoveCallback(deltaX,deltaY);
+	}
+	
+	bool _IsHitch()
+	{
+		bool result=(!_IsDraggable&&cast<GUIPanel>(this)!is null&&cast<GUIButton>(this)is null&&cast<GUIGrid>(this)is null);
+		return result&&(Parent!is null?Parent._IsHitch():true);
+	}
+	
+	GUIObject@FindMouseHit()
+	{
+		return FindHit(__MouseX,__MouseY);
+	}
+	
+	GUIObject@FindHit(int x,int y)
+	{
+		
+		for(int i=int(_Children.length())-1;i>=0;i--)
+		{
+			GUIObject@obj=_Children[i].FindHit(x,y);
+			if(obj!is null)
+			return obj;
+		} 
+		
+		if(IsHit(x,y))
+		return this; 
+		
+		return null;
+	}
+	
+	bool IsMouseHit()
+	{
+		return IsHit(__MouseX,__MouseY);
+	}
+	
+	bool IsHit(int x,int y)
+	{
+		return Active&&!_IsNotHittable&&_Width>0&&_Height>0&&((x)>=(_AbsolutePosX)&&(x)<(_AbsolutePosX)+(_Width)&&(y)>=(_AbsolutePosY)&&(y)<(_AbsolutePosY)+(_Height));
+	}
+	
+	void _GetWholeSizeRect(int[]&rect)
+	{
+		int l=_AbsolutePosX;
+		int t=_AbsolutePosY;
+		int r=l+Width;
+		int b=t+Height;
+		
+		if(l<rect[0])
+		rect[0]=l;
+		if(t<rect[1])
+		rect[1]=t;
+		if(r>rect[2])
+		rect[2]=r;
+		if(b>rect[3])
+		rect[3]=b;
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GetWholeSizeRect(rect);
+	}
+	
+	void GetWholeSize(int&centerX,int&centerY,int&wholeWidth,int&wholeHeight)
+	{
+		int[]rect={1000000000,1000000000,-1000000000,-1000000000};
+		_GetWholeSizeRect(rect);
+		wholeWidth=rect[2]-rect[0];
+		wholeHeight=rect[3]-rect[1];
+		centerX=rect[0]+wholeWidth/2;
+		centerY=rect[1]+wholeHeight/2;
+	}
+	
+	void _MouseDown(int button)
+	{
+		_IsPressed=true;
+		_PressedButton=button;
+		_PressedX=__MouseX;
+		_PressedY=__MouseY;
+		OnMouseDown(button);
+		
+		if(_IsDraggable&&_PressedButton==(0))
+		{
+			bool draggableCursor=(GetCurrentCursor()==(6));
+			if(draggableCursor)
+			{
+				_IsDragged=true;
+				OnDragChanged();
+			}
+		}
+		
+		if(!_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(button);
+			_MousePressed(button);
+		}
+		_PressedRepeatTime=GetTick()+500;
+	}
+	
+	void _MousePressed(int button)
+	{
+		OnMousePressed(button);
+		if(button==(0))
+		OnLMousePressed();
+		else if(button==(1))
+		OnRMousePressed();
+		_PressedRepeatTime=GetTick()+40;
+	}
+	
+	void _MouseUp(bool lost)
+	{
+		_IsPressed=false;
+		
+		if(_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(_PressedButton);
+			_MousePressed(_PressedButton);
+		}
+		
+		OnMouseUp(_PressedButton,lost);
+		
+		if(_IsDragged)
+		{
+			_IsDragged=false;
+			OnDragChanged();
+		}
+	}
+	
+	void MouseClick(int button)
+	{
+		OnMouseClick(button);
+		if(button==(0))
+		OnLMouseClick();
+		else if(button==(1))
+		OnRMouseClick();
+	}
+	
+	void _MouseMove()
+	{
+		OnMouseMove();
+	}
+	
+	void _GlobalMouseDown(int button)
+	{
+		OnGlobalMouseDown(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseDown(button);
+	}
+	
+	void _GlobalMouseUp(int button)
+	{
+		OnGlobalMouseUp(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseUp(button);
+	}
+	
+	void _GlobalMousePressed(int button)
+	{
+		OnGlobalMousePressed(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMousePressed(button);
+	}
+	
+	void _GlobalMouseClick(int button)
+	{
+		OnGlobalMouseClick(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseClick(button);
+	}
+	
+	void _GlobalMouseMove()
+	{
+		OnGlobalMouseMove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseMove();
+	}
+	
+	void Input(uint8 key,string@text)
+	{
+		OnInput();
+		if(text is null)
+		OnInput(key);
+		else
+		OnInput(text);
+		OnInput(key,text);
+	}
+	
+	void _GlobalInput(uint8 key,string@text)
+	{
+		OnGlobalInput(key,text);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalInput(key,text);
+	}
+	
+	void _Focus()
+	{
+		if(!_IsFocused)
+		{
+			_IsFocused=true;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Unfocus()
+	{
+		if(_IsFocused)
+		{
+			_IsFocused=false;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Hover()
+	{
+		if(!_IsHovered)
+		{
+			_IsHovered=true;
+			OnHoverChanged();
+		}
+	}
+	
+	void _Unhover()
+	{
+		if(_IsHovered)
+		{
+			_IsHovered=false;
+			OnHoverChanged();
+		}
+	}
+	
+	GUIObject@_Clone(GUIObject@parent=null)
+	{
+		GUIObject@newObject=_CloneExt(parent);
+		newObject._Init();
+		return@newObject;
+	}
+	
+	GUIObject@_CloneExt(GUIObject@parent)
+	{
+		GUIObject@newObject;
+		reflection::typeof<GUIObject>(this).instantiate(@this,@newObject);
+		newObject._Children.resize(0);
+		@newObject._Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(newObject);
+		newObject.OnConstruct();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._CloneExt(newObject);
+		return@newObject;
+	}
+	
+	GUIPanel@FindPanel(string&name)
+	{
+		return cast<GUIPanel>(Find(name));
+	}
+	
+	GUIText@FindText(string&name)
+	{
+		return cast<GUIText>(Find(name));
+	}
+	
+	GUITextInput@FindTextInput(string&name)
+	{
+		return cast<GUITextInput>(Find(name));
+	}
+	
+	GUIButton@FindButton(string&name)
+	{
+		return cast<GUIButton>(Find(name));
+	}
+	
+	GUIObject@Find(string&name,bool deepFind=true)
+	{
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._Name!is null&&child._Name==name)
+			return child;
+			
+			if(deepFind)
+			{
+				GUIObject@obj=child.Find(name);
+				if(obj!is null)
+				return obj;
+			}
+		}
+		return null;
+	}
+	
+	GUIObject@GetChild(uint index)
+	{
+		return _Children[index];
+	}
+	
+	void _RefreshPosition()
+	{
+		
+		_Width=_BaseWidth;
+		_Height=_BaseHeight;
+		int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+		int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+		int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+		int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+		int parentBaseWidth=(_Parent!is null?_Parent._BaseWidth:_BaseWidth);
+		int parentBaseHeight=(_Parent!is null?_Parent._BaseHeight:_BaseHeight); 
+		
+		int newPosX;
+		int newPosY;
+		if(_Dock!=0)
+		{
+			if(_Dock==(1))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(2))
+			{
+				newPosX=parentAbsolutePosX+parentWidth-_Width;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(3))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(4))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY+parentHeight-_Height;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(5))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+				_Height=parentHeight;
+			}
+			else
+			{
+				newPosX=_BasePosX+parentAbsolutePosX;
+				newPosY=_BasePosY+parentAbsolutePosY;
+			}
+		}
+		
+		else
+		{
+			if((_Anchor&(0x1))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX;
+			else if((_Anchor&(0x2))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth);
+			else
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth)/2;
+			
+			if((_Anchor&(0x4))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY;
+			else if((_Anchor&(0x8))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight);
+			else
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight)/2;
+		} 
+		
+		if(newPosX!=_AbsolutePosX||newPosY!=_AbsolutePosY)
+		_Move(newPosX-_AbsolutePosX,newPosY-_AbsolutePosY,false,false);
+	}
+	
+	void _SizeChanged()
+	{
+		
+	} 
+	
+	void SetName(string@name)
+	{
+		@_Name=name;
+	}
+	
+	void SetActive(bool active)
+	{
+		if(_ActiveSelf!=active)
+		{
+			_ActiveSelf=active;
+			_ActiveChanged();
+		}
+	}
+	
+	void _ActiveChanged()
+	{
+		OnActiveChanged();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._ActiveChanged();
+	}
+	
+	void SetPosition(int x,int y)
+	{
+		if(_BasePosX==x&&_BasePosY==y)
+		return;
+		
+		_BasePosX=x;
+		_BasePosY=y;
+		_RefreshPosition();
+	}
+	
+	void SetPosition(string&iniKey)
+	{
+		
+		string@str=GetIfaceIniStr(iniKey);
+		if(@str==null||str=="")
+		return;
+		
+		string@[]@valuesStr=splitEx(str," ");
+		if(valuesStr.length()!=4)
+		return;
+		
+		int[]values(4);
+		for(int i=0;i<4;i++)
+		values[i]=valuesStr[i].toInt();
+		
+		_BasePosX=values[0];
+		_BasePosY=values[1];
+		_BaseWidth=values[2]-values[0];
+		_BaseHeight=values[3]-values[1];
+		_RefreshPosition();
+	}
+	
+	void SetSize(int w,int h)
+	{
+		if(_BaseWidth==w&&_BaseHeight==h)
+		return;
+		
+		_BaseWidth=w;
+		_BaseHeight=h;
+		_RefreshPosition();
+		_SizeChanged();
+	}
+	
+	void SetAnchor(int anchorStyles)
+	{
+		if(_Anchor==anchorStyles)
+		return;
+		
+		_Anchor=anchorStyles;
+		_RefreshPosition();
+	}
+	
+	void SetDock(int dockStyle)
+	{
+		if(_Dock==dockStyle)
+		return;
+		
+		_Dock=dockStyle;
+		_RefreshPosition();
+	}
+	
+	void SetDraggable(bool enabled)
+	{
+		_IsDraggable=enabled;
+	}
+	
+	void SetNotHittable(bool enabled)
+	{
+		_IsNotHittable=enabled;
+	}
+	
+	void SetCheckTransparentOnHit(bool enabled)
+	{
+		_CheckTransparentOnHit=enabled;
+	}
+	
+	void SetDeferredMousePressed(bool enabled)
+	{
+		_DeferredMousePressed=enabled;
+	}
+}
+
+shared class GUIPanel:GUIObject
+{
+	Sprite@get_BackgroundImage()final{return _BackgroundImage;}
+	int get_BackgroundImageLayout()final{return _BackgroundImage!is null?_BackgroundImage.Layout:(0);}
+	
+	Sprite@_BackgroundImage;
+	
+	bool IsHit(int x,int y)override
+	{
+		if(GUIObject::IsHit(x,y))
+		{
+			if(_CheckTransparentOnHit&&_BackgroundImage!is null)
+			return(GetPixelColor(_BackgroundImage.Id,_BackgroundImage.Frame,x-_AbsolutePosX,y-_AbsolutePosY)&0xFF000000)!=0;
+			return true;
+		}
+		return false;
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		if(_BackgroundImage!is null)
+		_DrawImage(_BackgroundImage);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void _DrawImage(Sprite@image)
+	{
+		if(_Width>0&&_Height>0)
+		image.Draw(_AbsolutePosX,_AbsolutePosY,_Width,_Height);
+	}
+	
+	void SetBackgroundImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageName,imageLayout);
+	}
+	
+	void SetBackgroundImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageNameHash,imageLayout);
+	}
+	
+	void _SetImage(Sprite@&curImage,string@imageName,int imageLayout)
+	{
+		@curImage=null;
+		if(imageName!is null)
+		{
+			Sprite spr;
+			spr.Load(imageName,(findFirst(imageName,"/")!=-1||findFirst(imageName,"\\")!=-1)?(0):(4));
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+	
+	void _SetImage(Sprite@&curImage,uint imageNameHash,int imageLayout)
+	{
+		if(curImage!is null&&curImage.LoadedNameHash==imageNameHash)
+		return;
+		
+		@curImage=null;
+		if(imageNameHash!=0)
+		{
+			Sprite spr;
+			spr.Load(imageNameHash);
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+}
+
+shared class GUIText:GUIObject
+{
+	string@get_Text(){return _Text;}
+	int get_TextFont()final{return _TextFont;}
+	uint get_TextColor()final{return _TextColor;}
+	uint get_TextColorFocused()final{return _TextColorFocused;}
+	int get_TextFlags()final{return _TextFlags;}
+	
+	string _Text;
+	int _TextFont=((5));
+	uint _TextColor=((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))));
+	uint _TextColorFocused;
+	int _TextFlags;
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetText(string@text,int font,int flags)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+		
+		_TextFont=font;
+		_TextFlags=flags;
+	}
+	
+	void SetText(string@text)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+	}
+	
+	void SetTextFont(int font)
+	{
+		_TextFont=font;
+	}
+	
+	void SetTextFlags(int flags)
+	{
+		_TextFlags=flags;
+	}
+	
+	void SetTextColor(uint color)
+	{
+		_TextColor=color;
+	}
+	
+	void SetTextFocusedColor(uint color)
+	{
+		_TextColorFocused=color;
+	}
+} 
+
+shared class GUITextInput:GUIText
+{
+	uint get_InputLength()final{return _InputLength;}
+	bool get_IsTextPassword()final{return _IsTextPassword;}
+	string get_PasswordChar()final{return _PasswordChar;}
+	
+	uint _InputLength;
+	bool _IsTextPassword;
+	string _PasswordChar;
+	uint _PasswordTime;
+	int _CarriagePos;
+	
+	void _Construct()override
+	{
+		SetCarriage(false);
+		_TextColorFocused=((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF))));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(_IsTextPassword)
+		{
+			string@rawText=text;
+			@text="";
+			for(uint i=0;i<rawText.length();i++)
+			text+=_PasswordChar;
+			if(GetTick()-_PasswordTime<=(1000))
+			text[-1]=rawText[-1];
+		}
+		if(_CarriagePos!=-1&&_IsFocused)
+		{
+			if(_CarriagePos<0)
+			_CarriagePos=0;
+			if(_CarriagePos>int(text.length()))
+			_CarriagePos=text.length();
+			@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		}
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		uint oldLen=_Text.length();
+		_ProcessKey(key,text,_Text,_CarriagePos);
+		while(_InputLength!=0&&_Text.length()>_InputLength)
+		_Text[-1]="";
+		if(_IsTextPassword)
+		_PasswordTime=(_Text.length()>oldLen?GetTick():0);
+		
+		GUIText::Input(key,text);
+	}
+	
+	bool _ProcessKey(uint8 key,string@text,string&resultText,int&carriagePos)
+	{
+		if(carriagePos!=-1)
+		{
+			if(carriagePos<0)
+			carriagePos=0;
+			else if(carriagePos>int(resultText.length()))
+			carriagePos=resultText.length();
+			
+			if(key==0x0E)
+			{
+				if(carriagePos>0)
+				{
+					resultText[carriagePos-1]="";
+					carriagePos--;
+				}
+			}
+			else if(key==0xD3)
+			{
+				if(carriagePos<int(resultText.length()))
+				resultText[carriagePos]="";
+			}
+			else if(key==0xCD)
+			{
+				if(carriagePos<int(resultText.length()))
+				carriagePos++;
+			}
+			else if(key==0xCB)
+			{
+				if(carriagePos>0)
+				carriagePos--;
+			}
+			else if(key==0xC7)
+			{
+				carriagePos=0;
+			}
+			else if(key==0xCF)
+			{
+				carriagePos=resultText.length();
+			}
+			else if(text!is null)
+			{
+				resultText=resultText.substring(0,carriagePos)+text+resultText.substring(carriagePos);
+				carriagePos+=text.length();
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if(key==0x0E)
+			{
+				if(resultText.length()>0)
+				resultText[-1]="";
+			}
+			else if(text!is null)
+			{
+				resultText+=text;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	void SetInputLength(uint length)
+	{
+		_InputLength=length;
+	}
+	
+	void SetInputPassword(string@passwordChar)
+	{
+		_IsTextPassword=(@passwordChar!=null&&passwordChar.length()==1);
+		_PasswordChar=passwordChar;
+		_PasswordTime=0;
+	}
+	
+	void SetCarriage(bool enable)
+	{
+		_CarriagePos=(enable?int(_Text.length()):-1);
+	}
+}
+
+shared class GUIButton:GUIPanel
+{
+	bool get_IsDisabled()final{return _IsDisabled;}
+	bool get_IsSwitched()final{return _IsSwitched;}
+	Sprite@get_PressedImage()final{return _PressedImage;}
+	int get_PressedImageLayout()final{return _PressedImage!is null?_PressedImage.Layout:(0);}
+	Sprite@get_HoverImage()final{return _HoverImage;}
+	int get_HoverImageLayout()final{return _HoverImage!is null?_HoverImage.Layout:(0);}
+	Sprite@get_DisabledImage()final{return _DisabledImage;}
+	int get_DisabledImageLayout()final{return _DisabledImage!is null?_DisabledImage.Layout:(0);}
+	
+	bool _IsDisabled;
+	bool _IsSwitched;
+	Sprite@_PressedImage;
+	Sprite@_HoverImage;
+	Sprite@_DisabledImage;
+	
+	void _Construct()override
+	{
+		_DeferredMousePressed=true;
+		
+		GUIPanel::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		if(!_IsDisabled)
+		{
+			
+			bool isPressed=((_IsPressed&&_PressedButton==(0))||_IsSwitched);
+			if(isPressed&&_PressedImage!is null)
+			_DrawImage(_PressedImage);
+			
+			else if(_IsHovered&&_HoverImage!is null)
+			_DrawImage(_HoverImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		else
+		{
+			
+			if(_DisabledImage!is null)
+			_DrawImage(_DisabledImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void _MousePressed(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::_MousePressed(button);
+	}
+	
+	void SetPressedImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageName,imageLayout);
+	}
+	
+	void SetPressedImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageNameHash,imageLayout);
+	}
+	
+	void SetHoverImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageName,imageLayout);
+	}
+	
+	void SetHoverImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageNameHash,imageLayout);
+	}
+	
+	void SetDisabledImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageName,imageLayout);
+	}
+	
+	void SetDisabledImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageNameHash,imageLayout);
+	}
+	
+	void SetSwitch(bool enabled)
+	{
+		_IsSwitched=enabled;
+	}
+	
+	void SetCondition(bool enabled)
+	{
+		_IsDisabled=!enabled;
+	}
+}
+
+shared class GUICheckBox:GUIButton
+{
+	bool get_IsChecked()final{return _IsSwitched;} 
+	
+	void OnCheckedChanged(){}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		if(button==(0))
+		SetChecked(!_IsSwitched);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)
+	{
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIRadioButton:GUICheckBox
+{
+	void MouseClick(int button)
+	{
+		if(_IsDisabled||_IsSwitched)
+		return;
+		
+		if(button==(0))
+		SetChecked(true);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)override
+	{
+		if(checked&&_Parent!is null)
+		{
+			for(uint i=0;i<_Parent._Children.length();i++)
+			{
+				GUIRadioButton@button=cast<GUIRadioButton>(_Parent._Children[i]);
+				if(button!is null&&button._IsSwitched)
+				{
+					button._IsSwitched=false;
+					button.OnCheckedChanged();
+				}
+			}
+		}
+		
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIScreen:GUIPanel
+{
+	int get_Index()final{return _Index;}
+	bool get_IsHardcoded()final{return _IsHardcoded;}
+	bool get_IsMain()final{return((_Index)>=(1)&&(_Index)<=(7));}
+	bool get_IsModal()final{return _IsModal;}
+	bool get_IsMultiinstance()final{return _IsMultiinstance;}
+	bool get_IsCloseOnMiss()final{return _IsCloseOnMiss;}
+	int[]get_AvailableCursors()final{return _AvailableCursors;}
+	int get_Cursor()final{return _Cursor;}
+	bool get_IsCanMove()final{return _IsCanMove;}
+	bool get_IsMoveIgnoreBorders()final{return _IsMoveIgnoreBorders;}
+	
+	int _Index;
+	bool _IsHardcoded;
+	bool _IsRegistered;
+	bool _IsModal;
+	bool _IsMultiinstance;
+	bool _IsCloseOnMiss;
+	int[]_AvailableCursors;
+	int _Cursor;
+	bool _IsCanMove;
+	bool _IsMoveIgnoreBorders; 
+	
+	bool[]@_InputKeyPressed;
+	bool[]@_InputMousePressed;
+	
+	void _Show(dictionary@params)override
+	{
+		
+		_ActiveSelf=true; 
+		
+		_Cursor=(_AvailableCursors.length()>0?AvailableCursors[0]:(0)); 
+		
+		GUIPanel::_Show(params);
+	}
+	
+	void _Hide()override
+	{
+		
+		_ActiveSelf=false; 
+		
+		GUIPanel::_Hide();
+	}
+	
+	void _Appear(dictionary@params)override
+	{
+		
+		ChangeCursor(_Cursor); 
+		
+		GUIPanel::_Appear(params);
+	}
+	
+	void _Disappear()override
+	{
+		
+		_Cursor=GetCurrentCursor(); 
+		
+		GUIPanel::_Disappear();
+	}
+	
+	void _GlobalMouseClick(int button)override
+	{
+		if(button==(1))
+		{
+			if(_AvailableCursors.length()>0)
+			{
+				int curCursor=GetCurrentCursor();
+				int curCursorIndex=_AvailableCursors.find(curCursor);
+				if(curCursorIndex!=-1)
+				{
+					curCursorIndex++;
+					if(curCursorIndex>=int(_AvailableCursors.length()))
+					curCursorIndex=0;
+					ChangeCursor(_AvailableCursors[curCursorIndex]);
+				}
+			}
+		}
+		else
+		{
+			GUIPanel::_GlobalMouseClick(button);
+		}
+	}
+	
+	void _GlobalMouseMove()override
+	{
+		
+		if(_IsCanMove)
+		{
+			GUIObject@pressedObj=_FindPressed(this);
+			if(pressedObj!is null&&pressedObj._PressedButton==(0)&&pressedObj._IsHitch())
+			{
+				int lastPosX=_AbsolutePosX;
+				int lastPosY=_AbsolutePosY;
+				int newPosX=_AbsolutePosX+(__MouseX-pressedObj._PressedX);
+				int newPosY=_AbsolutePosY+(__MouseY-pressedObj._PressedY);
+				pressedObj._PressedX=__MouseX;
+				pressedObj._PressedY=__MouseY; 
+				
+				if(!_IsMoveIgnoreBorders)
+				{
+					int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+					int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+					int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+					int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+					int px=newPosX;
+					int py=newPosY;
+					if(newPosX<parentAbsolutePosX)
+					newPosX=parentAbsolutePosX;
+					if(newPosY<parentAbsolutePosY)
+					newPosY=parentAbsolutePosY;
+					if(newPosX+_Width>parentWidth)
+					newPosX=parentWidth-_Width;
+					if(newPosY+_Height>parentHeight)
+					newPosY=parentHeight-_Height;
+					pressedObj._PressedX+=newPosX-px;
+					pressedObj._PressedY+=newPosY-py;
+				} 
+				
+				if(lastPosX!=newPosX||lastPosY!=newPosY)
+				{
+					int deltaX=newPosX-lastPosX;
+					int deltaY=newPosY-lastPosY;
+					_Move(deltaX,deltaY,true,true);
+				}
+			}
+		}
+		
+		GUIPanel::_GlobalMouseMove();
+	}
+	
+	GUIObject@_FindPressed(GUIObject@obj)
+	{
+		if(obj._IsPressed)
+		return obj;
+		for(uint i=0;i<obj._Children.length();i++)
+		{
+			GUIObject@pressedObj=_FindPressed(obj._Children[i]);
+			if(pressedObj!is null)
+			return pressedObj;
+		}
+		return null;
+	} 
+	
+	void SetModal(bool enabled)
+	{
+		_IsModal=enabled;
+	}
+	
+	void SetMultiinstance(bool enabled)
+	{
+		_IsMultiinstance=enabled;
+	}
+	
+	void SetCloseOnMiss(bool enabled)
+	{
+		_IsCloseOnMiss=enabled;
+	}
+	
+	void SetAvailableCursors(int[]cursors)
+	{
+		_AvailableCursors=cursors;
+	}
+	
+	void SetCanMove(bool enabled,bool ignoreBorders)
+	{
+		_IsCanMove=enabled;
+		_IsMoveIgnoreBorders=ignoreBorders;
+	}
+}
+
+shared class GUIGrid:GUIPanel
+{
+	string@get_CellPrototype()final{return _CellPrototype;}
+	uint get_GridSize()final{return _GridSize;}
+	int get_Columns()final{return _Columns;}
+	int get_PaddingX()final{return _PaddingX;}
+	int get_PaddingY()final{return _PaddingY;}
+	GUIObject@[]get_Cells()final{return _Cells;}
+	
+	string@_CellPrototype;
+	uint _GridSize;
+	int _Columns;
+	int _PaddingX;
+	int _PaddingY;
+	GUIObject@[]_Cells;
+	
+	void _Init()override
+	{
+		if(_CellPrototype!is null)
+		SetCellPrototype(_CellPrototype);
+		
+		if(_GridSize>0)
+		ResizeGrid(_GridSize);
+		
+		GUIPanel::_Init();
+	}
+	
+	void ResizeGrid(uint size)
+	{
+		
+		if(_CellPrototype is null||_CellPrototype.length()==0)
+		return;
+		GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+		if(cellPrototype is null)
+		return; 
+		
+		int childIndex=-1;
+		if(cellPrototype._Parent is this)
+		childIndex=cellPrototype._Parent._Children.findByRef(cellPrototype); 
+		
+		for(uint i=0;i<_Children.length();)
+		{
+			if(_Cells.findByRef(_Children[i])!=-1)
+			_Children.removeAt(i);
+			else
+			i++;
+		}
+		_Cells.resize(0); 
+		
+		cellPrototype._ActiveSelf=true;
+		GUIObject@[]cellInstances;
+		int col=0,row=0;
+		for(uint i=0;i<size;i++)
+		{
+			GUIObject@cellInstance=cellPrototype._CloneExt(this);
+			_Children.removeLast();
+			_Children.insertAt(++childIndex,cellInstance);
+			_Cells.insertLast(cellInstance);
+			_SetCellIndex(cellInstance,this,cellInstances.length());
+			cellInstances.insertLast(cellInstance);
+			cellInstance._Move(col*(cellInstance._Width+_PaddingX),row*(cellInstance._Height+_PaddingY),false,true);
+			
+			if(++col>=_Columns)
+			{
+				col=0;
+				row++;
+			}
+		}
+		cellPrototype._ActiveSelf=false; 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		{
+			OnResizeGrid(cellInstances[i],i);
+			_ResizeGrid(cellInstances[i],cellInstances[i],i);
+		} 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		cellInstances[i]._Init();
+	}
+	
+	void _SetCellIndex(GUIObject@obj,GUIGrid@grid,uint cellIndex)
+	{
+		@obj._Grid=grid;
+		obj._CellIndex=cellIndex;
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_SetCellIndex(obj._Children[i],grid,cellIndex);
+	}
+	
+	void _ResizeGrid(GUIObject@obj,GUIObject@cell,uint cellIndex)
+	{
+		obj.OnResizeGrid(cell,cellIndex);
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_ResizeGrid(obj._Children[i],cell,cellIndex);
+	}
+	
+	void SetCellPrototype(string name)
+	{
+		@_CellPrototype=name;
+		if(_CellPrototype!is null&&_CellPrototype.length()>0)
+		{
+			GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+			if(cellPrototype!is null)
+			cellPrototype._ActiveSelf=false;
+		}
+	}
+	
+	void SetGridSize(uint size)
+	{
+		_GridSize=size;
+	}
+	
+	void SetColumns(int length)
+	{
+		_Columns=length;
+	}
+	
+	void SetPadding(int x,int y)
+	{
+		_PaddingX=x;
+		_PaddingY=y;
+	}
+}
+
+shared class GUIMessageBox:GUIText
+{
+	string[]get_MessageTexts()final{return _MessageTexts;}
+	int[]get_MessageTypes()final{return _MessageTypes;}
+	string[]get_MessageTimes()final{return _MessageTimes;}
+	bool[]get_DisplayedMessages()final{return _DisplayedMessages;}
+	bool get_InvertMessages()final{return _InvertMessages;}
+	
+	string[]_MessageTexts;
+	int[]_MessageTypes;
+	string[]_MessageTimes;
+	bool[]_DisplayedMessages;
+	bool _InvertMessages;
+	int _Scroll;
+	int _MaxScroll;
+	int _ScrollLines;
+	Sprite _ScrollUp;
+	Sprite _ScrollDown;
+	
+	void _Construct()override
+	{
+		_DisplayedMessages=array<bool>((10),true);
+		
+		_ScrollUp.Load("SUPARROW.FRM",(4));
+		_ScrollDown.Load("SDNARROW.FRM",(4));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Show(dictionary@params)override
+	{
+		GUIText::_Show(params);
+		
+		_InvertMessages=__MsgboxInvert;
+		_GenerateText();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(!_InvertMessages)
+		_TextFlags=(0x0040)|(0x0020)|(0x0800|((_ScrollLines)<<16));
+		else
+		_TextFlags=(0x0400|((_ScrollLines)<<16));
+		
+		GUIText::_Draw(callCallback);
+		
+		if(_IsHovered)
+		{
+			Sprite@spr=(__MouseY<_AbsolutePosY+_Height/2?_ScrollUp:_ScrollDown);
+			spr.Draw(__MouseX-spr.Width/2,__MouseY-spr.Height/2);
+		}
+	}
+	
+	void _Remove()override
+	{
+		__HideCursor=false;
+		
+		GUIText::_Remove();
+	}
+	
+	void _Hover()override
+	{
+		GUIText::_Hover();
+		
+		__HideCursor=true;
+	}
+	
+	void _Unhover()override
+	{
+		GUIText::_Unhover();
+		
+		__HideCursor=false;
+	}
+	
+	void _SizeChanged()override
+	{
+		_GenerateText();
+		
+		GUIText::_SizeChanged();
+	}
+	
+	void _MousePressed(int button)override
+	{
+		if(button==(0)||button==(3)||button==(4))
+		{
+			if(button==(3)||(button==(0)&&__MouseY<_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll>0)
+				_Scroll--;
+				if(!_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+			}
+			else if(button==(4)||(button==(0)&&__MouseY>=_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+				if(!_InvertMessages&&_Scroll>0)
+				_Scroll--;
+			}
+			_GenerateText();
+		}
+		
+		GUIText::_MousePressed(button);
+	}
+	
+	void AddMessage(string@text,int type=(0))
+	{
+		
+		if(type==(0)&&text=="error")
+		return; 
+		
+		string messageText;
+		if(type>=(0)&&type<=(3))
+		{
+			uint[]sayColors={((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0xAA)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0x66)&0xFF)<<8)|((0)&0xFF))))};
+			messageText="|"+sayColors[type]+" "+EncodeUTF8((0x2022))+" |"+((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))))+" "+text;
+		}
+		else
+		{
+			messageText=text;
+		}
+		_MessageTexts.insertLast(messageText); 
+		
+		int messageType=type;
+		_MessageTypes.insertLast(messageType); 
+		
+		uint16 year=0;
+		uint16 month=0;
+		uint16 day=0;
+		uint16 dayOfWeek=0;
+		uint16 hour=0;
+		uint16 minute=0;
+		uint16 second=0;
+		uint16 milliseconds;
+		GetTime(year,month,day,dayOfWeek,hour,minute,second,milliseconds);
+		string messageTime=(hour<=9?"0":"")+hour+":"+(minute<=9?"0":"")+minute+":"+(second<=9?"0":"")+second+" ";
+		_MessageTimes.insertLast(messageTime); 
+		
+		if(_DisplayedMessages[type])
+		{
+			if(_Scroll>0&&_IsHovered)
+			_Scroll++;
+			else
+			_Scroll=0;
+		}
+		_GenerateText();
+	}
+	
+	void _GenerateText()
+	{
+		if(!Active)
+		return;
+		
+		_Text="";
+		if(_MessageTexts.length()==0)
+		return;
+		
+		int tw=0,th=0;
+		int maxLines=0;
+		GetTextInfo(null,_Width,_Height,_TextFont,0,tw,th,maxLines);
+		if(maxLines<=0)
+		{
+			_MaxScroll=0;
+			_ScrollLines=0;
+			return;
+		}
+		
+		_ScrollLines=-1;
+		int lines=0;
+		for(int i=_MessageTexts.length()-1;i>=0;i--)
+		{
+			string@messageText=_MessageTexts[i];
+			int messageType=_MessageTypes[i];
+			string@messageTime=_MessageTimes[i]; 
+			
+			if(!_DisplayedMessages[messageType])
+			continue; 
+			
+			int curLines=lines;
+			int skipLines=0;
+			GetTextInfo(messageText,_Width,1000,_TextFont,0,tw,th,skipLines);
+			lines+=skipLines;
+			
+			if(_ScrollLines<0)
+			{
+				if(lines<=_Scroll)
+				continue;
+				_ScrollLines=_Scroll-curLines;
+			}
+			
+			if(curLines-_Scroll<maxLines)
+			{
+				
+				if(_InvertMessages)
+				_Text+=messageText+"\n";
+				else
+				_Text=messageText+"\n"+_Text;
+			}
+			else
+			{
+				break;
+			}
+		}
+		_MaxScroll=lines-maxLines;
+		if(_ScrollLines<0)
+		_ScrollLines=0;
+	}
+	
+	bool _SetDisplayedMessage(int messageType,bool enable)
+	{
+		bool generateText=false;
+		
+		if(messageType!=(10))
+		{
+			if(_DisplayedMessages[messageType]!=enable)
+			{
+				_DisplayedMessages[messageType]=enable;
+				generateText=true;
+			}
+		}
+		else
+		{
+			for(uint i=0;i<(10);i++)
+			{
+				if(_DisplayedMessages[messageType]!=enable)
+				{
+					_DisplayedMessages[messageType]=enable;
+					generateText=true;
+				}
+			}
+		}
+		
+		return generateText;
+	}
+	
+	void SetDisplayedMessages(int[]messageTypes)
+	{
+		bool generateText=false;
+		bool displayAll=(messageTypes.find((10))!=-1);
+		for(uint i=0;i<_DisplayedMessages.length();i++)
+		if(_SetDisplayedMessage(i,displayAll||messageTypes.find(i)!=-1))
+		generateText=true;
+		if(generateText)
+		_GenerateText();
+	}
+	
+	void ChangeDisplayedMessage(int messageType,bool enable)
+	{
+		if(_SetDisplayedMessage(messageType,enable))
+		_GenerateText();
+	}
+	
+	void SetInvertMessages(bool invert)
+	{
+		_InvertMessages=invert;
+		_GenerateText();
+	}
+} 
+
+shared class GUIConsole:GUITextInput
+{
+	string get_HistoryStorageName()final{return _HistoryStorageName;}
+	string[]@get_History()final{
+		return _History;
+	}
+	uint get_HistoryMaxLength()final{return _HistoryMaxLength;}
+	
+	string@_HistoryStorageName;
+	string _HistoryActualStorageName;
+	string[]_History;
+	uint _HistoryMaxLength;
+	uint _HistoryCur;
+	
+	void _Construct()override
+	{
+		SetCarriage(true);
+		@_HistoryStorageName="";
+		
+		GUITextInput::_Construct();
+	}
+	
+	void Toggle()
+	{
+		if(!Active)
+		{
+			
+			Activate();
+		}
+		else if(_Text.length()==0)
+		{
+			
+			Deactivate();
+		}
+		else
+		{
+			
+			SendText();
+		}
+	}
+	
+	void Activate()
+	{
+		
+		if(Active||!Parent.Active)
+		return; 
+		
+		string actualStorageName="";
+		if(_HistoryStorageName!is null&&__Name!is null&&__Name!="")
+		actualStorageName="console_"+__Name+_HistoryStorageName;
+		
+		if(_HistoryActualStorageName!=actualStorageName)
+		{
+			_History.resize(0);
+			_HistoryActualStorageName=actualStorageName;
+			if(_HistoryActualStorageName!="")
+			{
+				Serializator data;
+				if(data.Load(_HistoryActualStorageName))
+				data.Get(_History);
+			}
+		}
+		
+		_HistoryCur=_History.length(); 
+		
+		SetActive(true);
+	}
+	
+	void Deactivate()
+	{
+		
+		if(_ActiveSelf)
+		SetActive(false);
+	}
+	
+	void SendText()
+	{
+		if(!Active)
+		return; 
+		
+		_History.insertLast(_Text);
+		for(uint i=0;i<_History.length()-1;)
+		{
+			if(_History[i]==_History.last())
+			_History.removeAt(i);
+			else
+			i++;
+		} 
+		
+		uint historyMaxLength=(_HistoryMaxLength!=0?_HistoryMaxLength:__ConsoleHistorySize);
+		while(_History.length()>historyMaxLength)
+		_History.removeAt(0);
+		_HistoryCur=_History.length(); 
+		
+		if(_HistoryActualStorageName!="")
+		{
+			Serializator data;
+			data.Set(_History);
+			data.Save(_HistoryActualStorageName);
+		} 
+		
+		bool[]@keyPressed=Screen._InputKeyPressed;
+		if(keyPressed[0x1D]||keyPressed[0x9D])
+		CustomCall("ConsoleMessage\n/s"+_Text,"\n");
+		else if(keyPressed[0x38]||keyPressed[0xB8])
+		CustomCall("ConsoleMessage\n/w"+_Text,"\n");
+		else if(keyPressed[0x2A]||keyPressed[0x36])
+		CustomCall("ConsoleMessage\n/r"+_Text,"\n");
+		else
+		CustomCall("ConsoleMessage\n"+_Text,"\n"); 
+		
+		_Text="";
+		_CarriagePos=0;
+	}
+	
+	void _GlobalInput(uint8 key,string@text)override
+	{
+		GUITextInput::_GlobalInput(key,text);
+		
+		if(Active)
+		{
+			if(key==0xC8&&_HistoryCur>0)
+			{
+				_HistoryCur--;
+				_Text=_History[_HistoryCur];
+				_CarriagePos=_Text.length();
+			}
+			else if(key==0xD0)
+			{
+				if(_HistoryCur+1<_History.length())
+				{
+					_HistoryCur++;
+					_Text=_History[_HistoryCur];
+					_CarriagePos=_Text.length();
+				}
+				else
+				{
+					_HistoryCur=_History.length();
+					_Text="";
+					_CarriagePos=0;
+				}
+				
+			}
+			else
+			{
+				GUITextInput::Input(key,text);
+			}
+		}
+		
+		if(key==0x1C||key==0x9C)
+		{
+			Toggle();
+		}
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		GUIText::Input(key,text);
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		string@text=Text;
+		
+		if(_CarriagePos<0)
+		_CarriagePos=0;
+		if(_CarriagePos>int(text.length()))
+		_CarriagePos=text.length();
+		
+		@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,_TextColor,_TextFont,_TextFlags);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetHistoryStorage(string storageName)
+	{
+		
+		_HistoryStorageName=storageName;
+	}
+	
+	void SetHistoryMaxLength(uint length)
+	{
+		_HistoryMaxLength=length;
+	}
+}
+
+shared class GUIItemView:GUIGrid
+{
+	int get_UserData()final{return _UserData;}
+	bool get_UseSorting()final{return _UseSorting;}
+	uint get_CritterId()final{return _CritterId;}
+	ItemCl@[]@get_Items()final{
+		return _Items;
+	}
+	int get_Scroll()final{return _Scroll;}
+	
+	int _UserData;
+	bool _UseSorting;
+	uint _CritterId;
+	ItemCl@[]_Items;
+	int _Scroll; 
+	
+	int OnCheckItem(ItemCl@item){return-1;}
+	void OnScrollChanged(){}
+	
+	ItemCl@GetItem(uint cellIndex)
+	{
+		int itemIndex=cellIndex+_Scroll;
+		return(itemIndex>=0&&itemIndex<int(_Items.length())?_Items[itemIndex]:null);
+	}
+	
+	void Resort()
+	{
+		_Resort(); 
+		
+		int maxScroll=int(_Items.length())-int(_GridSize);
+		if(_Columns>0)
+		maxScroll+=maxScroll%_Columns;
+		if(maxScroll<0)
+		maxScroll=0;
+		if(_Scroll>maxScroll)
+		SetScroll(maxScroll);
+	}
+	
+	void _Resort()
+	{
+		_Items.resize(0);
+		
+		CritterCl@cr=(_CritterId==0?GetChosen():GetCritter(_CritterId));
+		if(cr!is null)
+		{
+			ItemCl@[]items;
+			cr.GetItems(-1,items);
+			if(!_UseSorting)
+			{
+				for(uint i=0;i<items.length();i++)
+				{
+					int itemIndex=OnCheckItem(items[i]);
+					if(itemIndex>=0)
+					{
+						if(itemIndex>=int(_Items.length()))
+						_Items.resize(itemIndex+1);
+						@_Items[itemIndex]=items[i];
+					}
+				}
+			}
+			else
+			{
+				int[]sortValues;
+				for(uint i=0;i<items.length();i++)
+				{
+					int sortValue=OnCheckItem(items[i]);
+					if(sortValue>=0)
+					{
+						bool added=false;
+						for(uint j=0;j<_Items.length();j++)
+						{
+							if(sortValues[j]>sortValue)
+							{
+								_Items.insertAt(j,items[i]);
+								sortValues.insertAt(j,sortValue);
+								added=true;
+								break;
+							}
+						}
+						if(!added)
+						{
+							_Items.insertLast(items[i]);
+							sortValues.insertLast(sortValue);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	void SetUserData(int data)
+	{
+		_UserData=data;
+	}
+	
+	void SetUseSorting(bool enable)
+	{
+		_UseSorting=enable;
+	}
+	
+	void SetScroll(int value,bool checkAvailability=false)
+	{
+		if(checkAvailability&&!CheckScrollAvailability(value))
+		return;
+		
+		_Scroll=value;
+		OnScrollChanged();
+	}
+	
+	bool CheckScrollAvailability(int value)
+	{
+		if(value<_Scroll)
+		{
+			int minScroll=0;
+			return value>=minScroll;
+		}
+		if(value>_Scroll)
+		{
+			int maxScroll=int(_Items.length())-int(_GridSize);
+			if(_Columns>0)
+			maxScroll+=maxScroll%_Columns;
+			if(maxScroll<0)
+			maxScroll=0;
+			return value<=maxScroll;
+		}
+		return false;
+	}
+	
+	void SetCritter(uint crId)
+	{
+		_CritterId=crId;
+		_Resort();
+	}
+}   
+
+import void InitializeScreens()from"gui_screens";
+
+GUIScreen@[]Screens;
+GUIScreen@CursorScreen;
+
+GUIObject@FocusedObject;
+GUIObject@PressedObject;
+GUIObject@HoveredObject;
+
+DragAndDropHandler@[]DragAndDropHandlers;    
+
+void GUI_RegisterScreen(int screenIndex,GUIScreen&screen)
+{
+	UnregisterScreen(screenIndex);
+	RegisterScreen(screenIndex,screen);
+}
+
+GUIScreen@GUI_GetScreen(int screenIndex)
+{
+	return GetScreen(screenIndex);
+}
+
+GUIScreen@GUI_GetActiveMainScreen()
+{
+	for(uint i=0;i<Screens.length();i++)
+	if(Screens[i].ActiveSelf&&Screens[i].IsMain)
+	return Screens[i];
+	return null;
+}
+
+GUIScreen@GUI_GetActiveScreen()
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	if(Screens[i].ActiveSelf)
+	return Screens[i];
+	return null;
+}
+
+void GUI_GetActiveScreens(GUIScreen@[]&result)
+{
+	for(uint i=0;i<Screens.length();i++)
+	if(Screens[i].ActiveSelf)
+	result.insertLast(Screens[i]);
+}
+
+GUIObject@GUI_GetFocusedObject()
+{
+	if(FocusedObject!is null&&!FocusedObject.Active)
+	{
+		FocusedObject._Unfocus();
+		@FocusedObject=null;
+	}
+	return FocusedObject;
+}
+
+void GUI_SetFocusedObject(GUIObject@obj)
+{
+	if(FocusedObject!is null)
+	FocusedObject._Unfocus();
+	
+	if(obj!is null&&obj.Active)
+	{
+		@FocusedObject=obj;
+		if(FocusedObject!is null)
+		FocusedObject._Focus();
+	}
+	else
+	{
+		@FocusedObject=null;
+	}
+}
+
+GUIObject@GUI_GetPressedObject()
+{
+	if(PressedObject!is null&&!PressedObject.Active)
+	{
+		PressedObject._MouseUp(true);
+		@PressedObject=null;
+	}
+	return PressedObject;
+}
+
+GUIObject@GUI_GetDraggedObject()
+{
+	if(PressedObject!is null&&!PressedObject.Active)
+	{
+		PressedObject._MouseUp(true);
+		@PressedObject=null;
+	}
+	return PressedObject!is null&&PressedObject._IsDragged?PressedObject:null;
+}
+
+GUIObject@GUI_GetHoveredObject()
+{
+	if(HoveredObject!is null&&!HoveredObject.Active)
+	{
+		HoveredObject._Unhover();
+		@HoveredObject=null;
+	}
+	return HoveredObject;
+}
+
+void GUI_NextTextInput()
+{
+	GUIScreen@screen=GetActiveScreen();
+	if(screen is null)
+	return;
+	
+	GUITextInput@curTextInput=cast<GUITextInput>(FocusedObject);
+	@FindNextTextInputSkipObj=curTextInput;
+	GUITextInput@textInput=FindNextTextInput(screen);
+	@FindNextTextInputSkipObj=null;
+	if(textInput is null&&curTextInput!is null)
+	@textInput=FindNextTextInput(screen);
+	
+	if(textInput!is null&&textInput!is curTextInput)
+	{
+		if(FocusedObject!is null)
+		FocusedObject._Unfocus();
+		@FocusedObject=textInput;
+		FocusedObject._Focus();
+	}
+}
+
+GUIObject@FindNextTextInputSkipObj=null;
+GUITextInput@FindNextTextInput(GUIObject@obj)
+{
+	if(FindNextTextInputSkipObj is null)
+	{
+		GUITextInput@textInput=cast<GUITextInput>(obj);
+		if(textInput!is null)
+		return textInput;
+	}
+	else if(obj is FindNextTextInputSkipObj)
+	{
+		@FindNextTextInputSkipObj=null;
+	}
+	
+	for(uint i=0;i<obj._Children.length();i++)
+	{
+		if(obj._Children[i]._ActiveSelf)
+		{
+			GUITextInput@textInput=FindNextTextInput(obj._Children[i]);
+			if(textInput!is null)
+			return textInput;
+		}
+	}
+	return null;
+}
+
+void GUI_CollectMessageBoxes(GUIMessageBox@[]&messageBoxes)
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	CollectMessageBoxes(Screens[i],messageBoxes);
+}
+
+void CollectMessageBoxes(GUIObject@obj,GUIMessageBox@[]&messageBoxes)
+{
+	GUIMessageBox@mb=cast<GUIMessageBox>(obj);
+	if(mb!is null)
+	messageBoxes.insertLast(mb);
+	
+	for(uint i=0;i<obj._Children.length();i++)
+	CollectMessageBoxes(obj._Children[i],messageBoxes);
+}
+
+bool GUI_IsConsoleActive()
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	if(IsConsoleActive(Screens[i]))
+	return true;
+	return false;
+}
+
+bool IsConsoleActive(GUIObject@obj)
+{
+	if(!obj.ActiveSelf)
+	return false;
+	
+	GUIConsole@console=cast<GUIConsole>(obj);
+	if(console!is null)
+	return true;
+	
+	for(uint i=0;i<obj._Children.length();i++)
+	if(IsConsoleActive(obj._Children[i]))
+	return true;
+	
+	return false;
+}
+
+void GUI_AddDragAndDropHandler(DragAndDropHandler@handler)
+{
+	DragAndDropHandlers.insertLast(handler);
+}    
+
+void GUI_EngineCallback_Start()
+{
+	
+	CreateHardcodedScreen((1));
+	CreateHardcodedScreen((2));
+	CreateHardcodedScreen((4));
+	CreateHardcodedScreen((3));
+	CreateHardcodedScreen((5));
+	CreateHardcodedScreen((6));
+	CreateHardcodedScreen((7));
+	CreateHardcodedScreen((10),true);
+	CreateHardcodedScreen((11),true);
+	CreateHardcodedScreen((12),true);
+	CreateHardcodedScreen((13),true);
+	CreateHardcodedScreen((14),true);
+	CreateHardcodedScreen((15),true);
+	CreateHardcodedScreen((16),true);
+	CreateHardcodedScreen((17),true);
+	CreateHardcodedScreen((18));
+	CreateHardcodedScreen((19),true);
+	CreateHardcodedScreen((40),true);
+	CreateHardcodedScreen((20),true);
+	CreateHardcodedScreen((21),true);
+	CreateHardcodedScreen((22),true);
+	CreateHardcodedScreen((23),true);
+	CreateHardcodedScreen((24),true);
+	CreateHardcodedScreen((25));
+	CreateHardcodedScreen((26));
+	CreateHardcodedScreen((27));
+	CreateHardcodedScreen((28));
+	CreateHardcodedScreen((29),true);
+	CreateHardcodedScreen((30),true);
+	CreateHardcodedScreen((31),true);
+	CreateHardcodedScreen((32),true);
+	CreateHardcodedScreen((33));
+	CreateHardcodedScreen((34)); 
+	
+	InitializeScreens();
+}
+
+void GUI_EngineCallback_ShowScreen(int screenIndex,dictionary@params)
+{
+	
+	GUIScreen@lastMultiinstanceScreen=null;
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	{
+		
+		GUIScreen@screen=Screens[i];
+		if(screen.Index!=screenIndex)
+		continue; 
+		
+		if(!screen.IsMultiinstance)
+		{
+			ShowHideScreen(screen,params,true);
+			return;
+		} 
+		
+		@lastMultiinstanceScreen=screen;
+	} 
+	
+	if(lastMultiinstanceScreen!is null)
+	{
+		GUIScreen@screen=cast<GUIScreen>(lastMultiinstanceScreen._Clone());
+		Screens.insertLast(@screen);
+		ShowHideScreen(screen,params,true);
+	}
+}
+
+void GUI_EngineCallback_HideScreen(int screenIndex)
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	{
+		
+		GUIScreen@screen=Screens[i];
+		if(!screen.ActiveSelf||screen.Index!=screenIndex)
+		continue; 
+		
+		ShowHideScreen(screen,null,false); 
+		
+		break;
+	}
+}
+
+void GUI_EngineCallback_Draw(bool mainScreen)
+{
+	for(uint i=0;i<Screens.length();i++)
+	{
+		GUIScreen@screen=Screens[i];
+		if(screen.ActiveSelf&&mainScreen==screen.IsMain)
+		{
+			if(screen.IsHardcoded)
+			{
+				DrawHardcodedScreen(screen.Index);
+				GetHardcodedScreenPos(screen.Index,screen.AbsolutePosX,screen.AbsolutePosY);
+			}
+			screen._Draw(true);
+		}
+	}
+}
+
+void GUI_EngineCallback_DrawCursor()
+{
+	
+	GUIObject@draggedObject=GUI_GetDraggedObject();
+	if(draggedObject!is null)
+	{
+		int x=0,y=0,w=0,h=0;
+		draggedObject.GetWholeSize(x,y,w,h);
+		draggedObject.Draw(__MouseX-w/2,__MouseY-h/2);
+		return;
+	}
+	
+	CustomCall("LMenuDraw");
+	
+	if(CursorScreen!is null)
+	CursorScreen._Draw(true);
+	else
+	CustomCall("CurDraw");
+}
+
+import bool get_cont_item(uint&itemId,bool&isEnemy)from"client_main";
+void GUI_EngineCallback_MouseDown(int button)
+{
+	
+	if(button==(0)&&FocusedObject!is null)
+	{
+		FocusedObject._Unfocus();
+		@FocusedObject=null;
+	} 
+	
+	if(PressedObject!is null)
+	{
+		PressedObject._MouseUp(true);
+		@PressedObject=null;
+	} 
+	
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	{
+		
+		GUIScreen@screen=Screens[i];
+		if(!screen.ActiveSelf)
+		continue; 
+		
+		screen._GlobalMouseDown(button); 
+		
+		GUIObject@hitObj=screen.FindMouseHit();
+		if(hitObj!is null)
+		{
+			
+			@PressedObject=hitObj;
+			PressedObject._MouseDown(button); 
+			
+			if(button==(0))
+			{
+				@FocusedObject=hitObj;
+				FocusedObject._Focus();
+				
+				uint itemId=0;
+				bool isEnemy=false;
+				if(get_cont_item(itemId,isEnemy)&&itemId!=0)
+				CustomCall("LMenuTryActivate");
+			}
+			return;
+		} 
+		
+		if(screen.IsHardcoded)
+		{
+			HandleHardcodedScreenMouse(screen.Index,button,true,false);
+			return;
+		} 
+		
+		if(button==(0)&&screen.ActiveSelf&&!screen.IsHardcoded&&!screen.IsModal)
+		{
+			for(int j=i-1;j>=0;j--)
+			{
+				GUIScreen@nextScreen=Screens[j];
+				if(nextScreen.ActiveSelf)
+				{
+					GUIObject@nextHitObj=nextScreen.FindMouseHit();
+					if(nextHitObj!is null)
+					{
+						
+						if(screen.IsCloseOnMiss)
+						ShowHideScreen(screen,null,false,nextScreen);
+						else
+						ShowHideScreen(nextScreen,null,true);
+						GUI_EngineCallback_MouseDown(button);
+						return;
+					}
+				}
+			}
+		} 
+		
+		if(button==(0)&&screen.IsCloseOnMiss)
+		{
+			ShowHideScreen(screen,null,false);
+			return;
+		} 
+		
+		break;
+	}
+}
+
+void GUI_EngineCallback_MouseUp(int button)
+{
+	
+	GUIScreen@screen=GetActiveScreen();
+	if(screen!is null)
+	screen._GlobalMouseUp(button); 
+	
+	if(PressedObject!is null&&button==PressedObject._PressedButton)
+	{
+		GUIObject@obj=PressedObject;
+		bool isDragged=obj._IsDragged;
+		PressedObject._MouseUp(false);
+		@PressedObject=null;
+		
+		if(obj.IsMouseHit())
+		{
+			if(screen!is null)
+			screen._GlobalMouseClick(button);
+			obj.MouseClick(button);
+		}
+		
+		if(isDragged&&screen!is null)
+		{
+			GUIObject@target=screen.FindMouseHit();
+			for(uint i=0;i<DragAndDropHandlers.length();i++)
+			if(DragAndDropHandlers[i](obj,target))
+			break;
+		}
+		return;
+	} 
+	
+	if(screen!is null&&screen.IsHardcoded)
+	HandleHardcodedScreenMouse(screen.Index,button,false,false);
+}
+
+void GUI_EngineCallback_MouseMove()
+{
+	
+	GUIObject@hoveredObj;
+	GUIScreen@screen=GetActiveScreen();
+	if(screen!is null)
+	{
+		screen._GlobalMouseMove();
+		@hoveredObj=screen.FindMouseHit();
+		if(hoveredObj!is null)
+		hoveredObj._MouseMove();
+	} 
+	
+	if(HoveredObject!is hoveredObj)
+	{
+		if(HoveredObject!is null)
+		HoveredObject._Unhover();
+		@HoveredObject=hoveredObj;
+		if(HoveredObject!is null)
+		HoveredObject._Hover();
+	} 
+	
+	if(screen!is null&&screen.IsHardcoded)
+	HandleHardcodedScreenMouse(screen.Index,-1,false,true);
+}
+
+void GUI_EngineCallback_KeyDown(uint8 key,string@text)
+{
+	
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	if(Screens[i]._ActiveSelf)
+	Screens[i]._GlobalInput(key,text); 
+	
+	GUIScreen@screen=GetActiveScreen();
+	if(FocusedObject!is null&&FocusedObject!is screen)
+	FocusedObject.Input(key,text); 
+	
+	if(screen!is null&&screen.IsHardcoded)
+	HandleHardcodedScreenKey(screen.Index,key,text,true);
+}
+
+void GUI_EngineCallback_KeyUp(uint8 key)
+{
+	
+	GUIScreen@screen=GetActiveScreen();
+	if(screen!is null&&screen.IsHardcoded)
+	HandleHardcodedScreenKey(screen.Index,key,null,false);
+}
+
+void GUI_EngineCallback_InputLost()
+{
+	if(HoveredObject!is null)
+	{
+		HoveredObject._Unhover();
+		@HoveredObject=null;
+	}
+	if(FocusedObject!is null)
+	{
+		FocusedObject._Unfocus();
+		@FocusedObject=null;
+	}
+	if(PressedObject!is null)
+	{
+		PressedObject._MouseUp(true);
+		@PressedObject=null;
+	}
+}
+
+void GUI_EngineCallback_Loop()
+{
+	if(PressedObject!is null)
+	{
+		uint tick=GetTick();
+		if(tick>=PressedObject._PressedRepeatTime&&PressedObject.IsMouseHit())
+		{
+			GetActiveScreen()._GlobalMousePressed(PressedObject._PressedButton);
+			PressedObject._MousePressed(PressedObject._PressedButton);
+		}
+	}
+}
+
+void GUI_EngineCallback_GetActiveScreens(int[]&result)
+{
+	for(uint i=0;i<Screens.length();i++)
+	if(Screens[i].ActiveSelf)
+	result.insertLast(Screens[i].Index);
+}
+
+void GUI_EngineCallback_ItemChanged(bool onMap)
+{
+	if(!onMap)
+	{
+		GUIItemView@[]itemViews;
+		CollectItemView(itemViews);
+		for(uint i=0;i<itemViews.length();i++)
+		itemViews[i].Resort();
+	}
+}
+
+void CollectItemView(GUIItemView@[]&itemViews)
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	CollectItemView(Screens[i],itemViews);
+}
+
+void CollectItemView(GUIObject@obj,GUIItemView@[]&itemViews)
+{
+	GUIItemView@itemView=cast<GUIItemView>(obj);
+	if(itemView!is null)
+	itemViews.insertLast(itemView);
+	
+	for(uint i=0;i<obj._Children.length();i++)
+	CollectItemView(obj._Children[i],itemViews);
+}
+
+bool GUI_EngineCallback_CheckInterfaceHit(int x,int y)
+{
+	if(GetScreen((5)).IsHardcoded)
+	return CustomCall("IsCurInInterface "+x+" "+y)=="true";
+	
+	for(uint i=0;i<Screens.length();i++)
+	if(Screens[i].ActiveSelf&&Screens[i].FindHit(x,y)!is null)
+	return true;
+	return false;
+}    
+
+void GUI_Callback_OnResolutionChanged()
+{
+	for(uint i=0;i<Screens.length();i++)
+	Screens[i]._Reload(false,true);
+}
+
+void GUI_Callback_OnLanguageChanged()
+{
+	for(uint i=0;i<Screens.length();i++)
+	Screens[i]._Reload(true,true);
+}    
+
+import bool[]@GetKeyPressed()from"input";
+import bool[]@GetMousePressed()from"input";
+
+void CreateHardcodedScreen(int screenIndex,bool canMove=false)
+{
+	GUIScreen screen();
+	RegisterScreen(screenIndex,screen);
+	screen._IsHardcoded=true;
+	screen._IsModal=true;
+	screen._IsCanMove=canMove;
+	
+	if(screenIndex==(7))
+	screen.SetAvailableCursors(array<int>={(5)});
+	else if(screenIndex==(11)||screenIndex==(31))
+	screen.SetAvailableCursors(array<int>={(6),(0)});
+}
+
+void RegisterScreen(int screenIndex,GUIScreen&screen)
+{
+	if(screenIndex==(0))
+	return;
+	
+	screen._Index=screenIndex;
+	screen._ActiveSelf=false;
+	screen._IsRegistered=true;
+	@screen._InputKeyPressed=GetKeyPressed();
+	@screen._InputMousePressed=GetMousePressed();
+	screen._Init();
+	
+	if(screenIndex>(0))
+	{
+		Screens.insertLast(@screen);
+	}
+	else if(screenIndex==(-1))
+	{
+		@CursorScreen=screen;
+	}
+}
+
+void UnregisterScreen(int screenIndex)
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	{
+		GUIScreen@screen=Screens[i];
+		if(screen.Index==screenIndex)
+		{
+			if(screen.ActiveSelf)
+			ShowHideScreen(screen,null,false);
+			if(!screen.IsMultiinstance)
+			{
+				screen._Remove();
+				Screens.removeAt(i);
+			}
+			screen._IsRegistered=false;
+		}
+	}
+}
+
+void ShowHideScreen(GUIScreen&screen,dictionary@params,bool show,GUIScreen@appearScreen=null)
+{
+	
+	if(HoveredObject!is null)
+	{
+		HoveredObject._Unhover();
+		@HoveredObject=null;
+	}
+	if(FocusedObject!is null)
+	{
+		FocusedObject._Unfocus();
+		@FocusedObject=null;
+	}
+	if(PressedObject!is null)
+	{
+		PressedObject._MouseUp(true);
+		@PressedObject=null;
+	}
+	
+	if(show)
+	{
+		
+		GUIScreen@activeScreen=GetActiveScreen();
+		if(activeScreen!is null&&activeScreen!is screen)
+		activeScreen._Disappear(); 
+		
+		@FocusedObject=FindNextTextInput(screen);
+		if(FocusedObject!is null)
+		FocusedObject._Focus();
+		@HoveredObject=screen.FindMouseHit();
+		if(HoveredObject!is null)
+		HoveredObject._Hover(); 
+		
+		if(Screens.last()!is screen)
+		{
+			Screens.removeAt(Screens.findByRef(screen));
+			Screens.insertLast(screen);
+		} 
+		
+		if(!screen._ActiveSelf)
+		{
+			screen.SetActive(true);
+			screen._Show(params);
+			screen._Appear(params);
+		}
+		else
+		{
+			screen._Appear(params);
+		}
+	}
+	else
+	{
+		
+		if(!screen._ActiveSelf)
+		return; 
+		
+		screen._Disappear();
+		screen._Hide();
+		screen.SetActive(false); 
+		
+		if(screen.IsMultiinstance)
+		{
+			screen._Remove();
+			Screens.removeAt(Screens.findByRef(screen));
+		} 
+		
+		if(appearScreen is null)
+		@appearScreen=GetActiveScreen();
+		if(appearScreen!is null)
+		appearScreen._Appear(null);
+	}
+}
+
+GUIScreen@GetScreen(int screenIndex)
+{
+	GUIScreen@lastMultiinstanceScreen=null;
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	{
+		GUIScreen@screen=Screens[i];
+		if(screen.Index==screenIndex)
+		{
+			if(!screen.IsMultiinstance)
+			return screen;
+			else
+			@lastMultiinstanceScreen=screen;
+		}
+	}
+	return lastMultiinstanceScreen;
+}
+
+uint GetScreenCount(int screenIndex)
+{
+	uint count=0;
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	if(Screens[i].Index==screenIndex)
+	count++;
+	return count;
+}
+
+GUIScreen@GetActiveScreen()
+{
+	for(int i=int(Screens.length())-1;i>=0;i--)
+	if(Screens[i].ActiveSelf)
+	return Screens[i];
+	return null;
+}

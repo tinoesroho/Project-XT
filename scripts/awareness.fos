@@ -1,0 +1,57 @@
+//Awareness On Mouse-Over
+//Author: codave
+// modified: provides weapon and armor info 
+#include "_macros.fos"
+#include "_client_defines.fos"
+#include "_colors.fos"
+#include "_msgstr.fos"
+
+//cr.Stat[ ST_LEVEL ]
+
+void InitAwarenessHead() // Export
+{
+
+CritterCl@ cr = GetMonitorCritter(__MouseX, __MouseY); 
+     if( !valid(cr) )
+     return;
+ItemCl@ item = cr.GetItem( 0, SLOT_HAND1 );
+ItemCl@ itemArmor = cr.GetItem( 0, SLOT_ARMOR );
+int hp_amo = cr.Stat[ ST_CURRENT_HP ];
+
+	if(valid(cr)  )
+    {   
+		int Y=__MouseY;
+		string YourMom = cr.Stat[ ST_LEVEL ];
+		string Myself = "Level: ";
+		if(_CritIsInjured(cr))
+		{
+			DrawText ("Injured", __MouseX, Y-60, 500, 100, COLOR_DRED, FONT_FALLOUT, FT_BORDERED);
+			Y=Y+13; 
+		}  
+		if(valid(itemArmor)) 
+        { 
+			DrawText (""+GetMsgStr(TEXTMSG_ITEM, STR_ITEM_INFO(itemArmor)), __MouseX, Y-60, 500, 100, 0x0, FONT_FALLOUT, FT_BORDERED); 
+			Y=Y+13;
+        }
+         
+		else
+            {
+				DrawText ("No Armor", __MouseX, Y-60, 500, 100, COLOR_LGRAY, FONT_FALLOUT, FT_BORDERED);
+				Y=Y+13;
+            } 
+         
+		if(valid(item)) 
+            { 
+            DrawText (""+GetMsgStr(TEXTMSG_ITEM, STR_ITEM_INFO(item)), __MouseX, Y-60, 500, 100, 0x0, FONT_FALLOUT, FT_BORDERED);
+ 				Y=Y+13;
+			}
+         
+        else
+			{
+				DrawText ("Unarmed", __MouseX, Y-60, 500, 100, COLOR_LGRAY, FONT_FALLOUT, FT_BORDERED);
+				Y=Y+13;
+				}
+			// cr.Stat[ ST_LEVEL ]
+			DrawText (Myself + YourMom, __MouseX, Y-60, 500, 100, COLOR_LGRAY, FONT_FALLOUT, FT_BORDERED);
+        }    
+}

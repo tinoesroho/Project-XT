@@ -1,0 +1,95 @@
+Application
+	Name        FOnlineServer
+	Version     476
+	OS          6.1.7601 (Service Pack 1)
+	Timestamp   2017.09.01 12:23:02
+
+Exception
+	Code      EXCEPTION_ACCESS_VIOLATION
+	Address   0x005F20FD
+	Flags     0x0
+	Info      Attempted to read to an 0x0E5BCF8C
+
+Thread 'GUI' (3960, current)
+	FOnlineServer, Fl_Text_Display::draw_vline + 77, fl_text_display.cxx (1875)
+	FOnlineServer, Fl_Text_Display::draw_text + 198, fl_text_display.cxx (466)
+	FOnlineServer, Fl_Text_Display::draw + 2143, fl_text_display.cxx (3441)
+	FOnlineServer, Fl_Group::update_child + 160, fl_group.cxx (756)
+	FOnlineServer, Fl_Group::draw_children + 373, fl_group.cxx (730)
+	FOnlineServer, Fl_Window::draw + 94, fl_window.cxx (139)
+	FOnlineServer, Fl_Window::flush + 70, fl.cxx (1703)
+	FOnlineServer, Fl::flush + 140, fl.cxx (741)
+	FOnlineServer, fl_wait + 836, fl_win32.cxx (424)
+	FOnlineServer, Fl::wait + 23, fl.cxx (454)
+	FOnlineServer, Fl::wait + 33, fl.cxx (598)
+	FOnlineServer, main + 1209, mainserver.cpp (210)
+	FOnlineServer, WinMain + 402, fl_call_main.c (115)
+	FOnlineServer, __tmainCRTStartup + 282, crt0.c (275)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Thread 'GUIUpdate' (2156)
+	ntdll, NtDelayExecution + 21
+	KERNELBASE, Sleep + 15
+	FOnlineServer, Thread::Sleep + 13, common.cpp (1638)
+	FOnlineServer, GUIUpdate + 17, mainserver.cpp (525)
+	FOnlineServer, ThreadBeginExecution + 44, common.cpp (1546)
+	FOnlineServer, ptw32_threadStart + 119, ptw32_threadstart.c (225)
+	FOnlineServer, _callthreadstartex + 27, threadex.c (314)
+	FOnlineServer, _threadstartex + 100, threadex.c (292)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Thread 'WorldSaveManager' (2188)
+	ntdll, NtWaitForSingleObject + 21
+	kernel32, WaitForSingleObjectEx + 67
+	kernel32, WaitForSingleObject + 18
+	FOnlineServer, FOServer::Dump_Work + 46, server.cpp (4744)
+	FOnlineServer, ThreadBeginExecution + 44, common.cpp (1546)
+	FOnlineServer, ptw32_threadStart + 119, ptw32_threadstart.c (225)
+	FOnlineServer, _callthreadstartex + 27, threadex.c (314)
+	FOnlineServer, _threadstartex + 100, threadex.c (292)
+	kernel32, BaseThreadInitThunk + 18
+	ntdll, RtlInitializeExceptionChain + 99
+	ntdll, RtlInitializeExceptionChain + 54
+
+Loaded modules
+	C:\Users\Master\Desktop\Projects\FOnline XT\Server\FOnlineServer.exe (00400000)
+	C:\Windows\SysWOW64\ntdll.dll (77AA0000)
+	C:\Windows\syswow64\kernel32.dll (75940000)
+	C:\Windows\syswow64\KERNELBASE.dll (758F0000)
+	C:\Windows\syswow64\USER32.dll (76C10000)
+	C:\Windows\syswow64\GDI32.dll (76E00000)
+	C:\Windows\syswow64\LPK.dll (753A0000)
+	C:\Windows\syswow64\USP10.dll (77560000)
+	C:\Windows\syswow64\msvcrt.dll (77060000)
+	C:\Windows\syswow64\ADVAPI32.dll (76EE0000)
+	C:\Windows\SysWOW64\sechost.dll (76DE0000)
+	C:\Windows\syswow64\RPCRT4.dll (75CC0000)
+	C:\Windows\syswow64\SspiCli.dll (75340000)
+	C:\Windows\syswow64\CRYPTBASE.dll (75330000)
+	C:\Windows\syswow64\WS2_32.dll (76DA0000)
+	C:\Windows\syswow64\NSI.dll (75B20000)
+	C:\Windows\system32\dbghelp.dll (70850000)
+	C:\Windows\syswow64\PSAPI.DLL (76E90000)
+	C:\Windows\system32\WINMM.dll (738B0000)
+	C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.7601.18837_none_ec86b8d6858ec0bc\COMCTL32.dll (73B70000)
+	C:\Windows\syswow64\SHELL32.dll (75FC0000)
+	C:\Windows\syswow64\SHLWAPI.dll (75DB0000)
+	C:\Windows\syswow64\ole32.dll (77400000)
+	C:\Windows\system32\IMM32.DLL (75F60000)
+	C:\Windows\syswow64\MSCTF.dll (75BC0000)
+	C:\Program Files\Prio\prio32.dll (10000000)
+	C:\Windows\system32\uxtheme.dll (737C0000)
+	C:\Windows\system32\dwmapi.dll (73DE0000)
+	C:\Windows\syswow64\CLBCatQ.DLL (75A50000)
+	C:\Windows\syswow64\OLEAUT32.dll (77600000)
+	C:\Windows\system32\msimtf.dll (72BB0000)
+	C:\Windows\system32\VERSION.dll (73CF0000)
+	C:\Windows\system32\mswsock.dll (738F0000)
+	C:\Windows\System32\wshtcpip.dll (738A0000)
+
+AngelScript
+	Not available

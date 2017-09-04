@@ -1,0 +1,7142 @@
+﻿                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+
+import bool IsKeyPressed(int key)from"input";
+import bool IsMousePressed(int button)from"input";
+import bool IsCtrlDown()from"input";
+import bool IsAltDown()from"input";
+import bool IsShiftDown()from"input";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
+shared class Sprite
+{
+	void Load(string&name,int path=(0))
+	{
+		if(name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	}
+	
+	void Load(uint nameHash)
+	{
+		if(nameHash==LoadedNameHash)
+		return;
+		LoadedNameHash=nameHash;
+		
+		Id=LoadSprite(nameHash);
+		RefreshData();
+	}
+	
+	void LoadByIni(string&iniKey,int path)
+	{
+		string@name=GetIfaceIniStr(iniKey);
+		if(@name!=null&&name.length()>0)
+		Id=LoadSprite(name,path);
+		else
+		Id=0;
+		LoadedNameHash=uint(-1);
+		RefreshData();
+	} 
+	
+	void Draw(int x,int y,int w=0,int h=0,int cornerX=-1,int cornerY=-1)
+	{
+		if(Id==0||Hidden)
+		return;
+		
+		if(w==0)
+		w=Width;
+		if(h==0)
+		h=Height;
+		
+		if(AnimPlay)
+		{
+			uint ticksPerFrame=Ticks/FrmCount;
+			int framesPassed=(GetTick()-AnimStartTick)/ticksPerFrame;
+			if(framesPassed>0)
+			{
+				AnimStartTick+=framesPassed*ticksPerFrame;
+				Frame+=(AnimReverse?-framesPassed:framesPassed);
+				
+				bool endAnim=false;
+				if(Frame<=0)
+				{
+					endAnim=true;
+					AnimStartTick-=-Frame*ticksPerFrame;
+					Frame=0;
+				}
+				else if(Frame>=int(FrmCount)-1)
+				{
+					endAnim=true;
+					AnimStartTick-=(Frame+1-FrmCount)*ticksPerFrame;
+					Frame=FrmCount-1;
+				}
+				
+				if(endAnim)
+				{
+					if(AnimLoop)
+					Frame=(AnimReverse?int(FrmCount)-1:0);
+					else
+					AnimPlay=false;
+				}
+			}
+		}
+		
+		if(cornerX==0)
+		x-=w/2;
+		else if(cornerX==1)
+		x-=w;
+		if(cornerY==0)
+		y-=h/2;
+		else if(cornerY==1)
+		y-=h;
+		
+		switch(Layout)
+		{
+			case(1):
+			DrawSpritePattern(Id,Frame,x,y,w,h,Width,Height);
+			break;
+			case(2):
+			DrawSprite(Id,Frame,x+w/2-Width/2,y+h/2-Height/2);
+			break;
+			case(3):
+			DrawSprite(Id,Frame,x,y,w,h);
+			break;
+			case(4):
+			DrawSprite(Id,Frame,x,y,w,h,true);
+			break;
+			default:
+			DrawSprite(Id,Frame,x,y);
+			break;
+		}
+	}
+	
+	void SetFrame(int index)
+	{
+		Frame=index;
+		AnimPlay=false;
+	}
+	
+	void SetFirstFrame()
+	{
+		SetFrame(0);
+	}
+	
+	void SetLastFrame()
+	{
+		SetFrame(int(FrmCount)-1);
+	}
+	
+	void PlayAnimation(bool loop=true,bool reverse=false)
+	{
+		if(Id==0)
+		return;
+		if(AnimPlay&&AnimLoop==loop&&AnimReverse==reverse)
+		return;
+		
+		AnimPlay=true;
+		AnimLoop=loop;
+		AnimReverse=reverse;
+		AnimStartTick=GetTick();
+	}
+	
+	private void RefreshData()
+	{
+		if(Id!=0)
+		{
+			Width=GetSpriteWidth(Id,0);
+			Height=GetSpriteHeight(Id,0);
+			FrmCount=GetSpriteCount(Id);
+			Ticks=GetSpriteTicks(Id);
+		}
+		else
+		{
+			Width=0;
+			Height=0;
+			FrmCount=0;
+			Ticks=0;
+		}
+	}
+	
+	uint Id;
+	int Frame=-1;
+	int Layout=(0);
+	int Width;
+	int Height;
+	uint FrmCount;
+	uint Ticks;
+	bool AnimPlay;
+	bool AnimLoop;
+	bool AnimReverse;
+	uint AnimStartTick;
+	bool Hidden;
+	uint LoadedNameHash;
+}         
+
+shared class Serializator
+{
+	uint8[]Array;
+	uint CurPos;
+	uint BufSize;
+	uint DataSize;
+	
+	Serializator()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator(uint approxSize)
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+		GrowBuffer(approxSize);
+	}
+	
+	void GrowBuffer(uint size)
+	{
+		if(size<=BufSize)
+		return;
+		if(BufSize==0)
+		BufSize=1;
+		while(size>BufSize)
+		BufSize*=2;
+		Array.resize(BufSize);
+	}
+	
+	bool Save(string&name)
+	{
+		if(DataSize==0)
+		return false;   
+		
+		SetCacheData(name,Array,DataSize);
+		bool result=true;
+		
+		Clear();
+		return result;
+	}
+	
+	bool Load(string&name)
+	{
+		Clear();    
+		
+		if(not GetCacheData(name,Array))
+		return false;
+		
+		BufSize=Array.length();
+		DataSize=BufSize;
+		return true;
+	}
+	
+	void Clear()
+	{
+		CurPos=0;
+		BufSize=0;
+		DataSize=0;
+	}
+	
+	Serializator&SetCurPos(uint pos)
+	{
+		GrowBuffer(pos);
+		CurPos=pos;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Fill(uint8 value,uint length)
+	{
+		GrowBuffer(CurPos+length);
+		for(uint i=0;i<length;i++)
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64&value)
+	{
+		GrowBuffer(CurPos+8);
+		Array[CurPos++]=(value>>56)&0xFF;
+		Array[CurPos++]=(value>>48)&0xFF;
+		Array[CurPos++]=(value>>40)&0xFF;
+		Array[CurPos++]=(value>>32)&0xFF;
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32&value)
+	{
+		GrowBuffer(CurPos+4);
+		Array[CurPos++]=(value>>24)&0xFF;
+		Array[CurPos++]=(value>>16)&0xFF;
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16&value)
+	{
+		GrowBuffer(CurPos+2);
+		Array[CurPos++]=(value>>8)&0xFF;
+		Array[CurPos++]=value&0xFF;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool&value)
+	{
+		GrowBuffer(CurPos+1);
+		Array[CurPos++]=value?1:0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string&value)
+	{
+		uint len=value.rawLength();
+		GrowBuffer(CurPos+len+1);
+		for(uint i=0;i<len;i++)
+		Array[CurPos++]=value.rawGet(i);
+		Array[CurPos++]=0;
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const int8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint64[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*8;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint32[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*4;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint16[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen*2;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const uint8[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const bool[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}
+	
+	Serializator&Set(const string[]&values)
+	{
+		uint valuesLen=values.length();
+		uint len=4+valuesLen;
+		for(uint i=0,j=valuesLen;i<j;i++)
+		len+=values[i].length();
+		GrowBuffer(CurPos+len);
+		Set(valuesLen);
+		for(uint i=0,j=valuesLen;i<j;i++)
+		Set(values[i]);
+		if(CurPos>DataSize)
+		DataSize=CurPos;
+		return this;
+	}                            
+	
+	Serializator&Get(int64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(int8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint64&value)
+	{
+		value=0;
+		if(CurPos+8>DataSize)
+		return this;
+		value|=Array[CurPos++]<<56;
+		value|=Array[CurPos++]<<48;
+		value|=Array[CurPos++]<<40;
+		value|=Array[CurPos++]<<32;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint32&value)
+	{
+		value=0;
+		if(CurPos+4>DataSize)
+		return this;
+		value|=Array[CurPos++]<<24;
+		value|=Array[CurPos++]<<16;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint16&value)
+	{
+		value=0;
+		if(CurPos+2>DataSize)
+		return this;
+		value|=Array[CurPos++]<<8;
+		value|=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(uint8&value)
+	{
+		value=0;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++];
+		return this;
+	}
+	
+	Serializator&Get(bool&value)
+	{
+		value=false;
+		if(CurPos+1>DataSize)
+		return this;
+		value=Array[CurPos++]==1?true:false;
+		return this;
+	}
+	
+	Serializator&Get(string&str)
+	{
+		uint len=0;
+		for(uint i=CurPos;;i++)
+		{
+			if(i==DataSize)
+			{
+				str="";
+				return this;
+			}
+			if(Array[i]==0)
+			{
+				len=i-CurPos;
+				break;
+			}
+		}
+		str.rawResize(len);
+		for(uint i=0;i<len;i++)
+		str.rawSet(i,Array[CurPos++]);
+		CurPos++;
+		return this;
+	}
+	
+	Serializator&Get(int64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(int8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint64[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint32[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint16[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(uint8[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(bool[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}
+	
+	Serializator&Get(string[]&values)
+	{
+		uint valuesLen=0;
+		Get(valuesLen);
+		values.resize(valuesLen);
+		for(uint i=0;i<valuesLen;i++)
+		Get(values[i]);
+		return this;
+	}                             
+	
+};   
+
+funcdef bool DragAndDropHandler(GUIObject&obj,GUIObject@target);  
+
+import void GUI_RegisterScreen(int screenIndex,GUIScreen&screen)from"gui";
+import GUIScreen@GUI_GetScreen(int screenIndex)from"gui";
+import GUIScreen@GUI_GetActiveMainScreen()from"gui";
+import GUIScreen@GUI_GetActiveScreen()from"gui";
+import void GUI_GetActiveScreens(GUIScreen@[]&result)from"gui";
+import GUIObject@GUI_GetFocusedObject()from"gui";
+import void GUI_SetFocusedObject(GUIObject@obj)from"gui";
+import GUIObject@GUI_GetPressedObject()from"gui";
+import GUIObject@GUI_GetDraggedObject()from"gui";
+import GUIObject@GUI_GetHoveredObject()from"gui";
+import void GUI_NextTextInput()from"gui";
+import void GUI_CollectMessageBoxes(GUIMessageBox@[]&messageBoxes)from"gui";
+import bool GUI_IsConsoleActive()from"gui";
+import void GUI_AddDragAndDropHandler(DragAndDropHandler@handler)from"gui"; 
+
+import void GUI_EngineCallback_Start()from"gui";
+import void GUI_EngineCallback_ShowScreen(int screenIndex,dictionary@params)from"gui";
+import void GUI_EngineCallback_HideScreen(int screenIndex)from"gui";
+import void GUI_EngineCallback_Draw(bool mainScreen)from"gui";
+import void GUI_EngineCallback_DrawCursor()from"gui";
+import void GUI_EngineCallback_MouseDown(int button)from"gui";
+import void GUI_EngineCallback_MouseUp(int button)from"gui";
+import void GUI_EngineCallback_MouseMove()from"gui";
+import void GUI_EngineCallback_KeyDown(uint8 key,string@text)from"gui";
+import void GUI_EngineCallback_KeyUp(uint8 key)from"gui";
+import void GUI_EngineCallback_InputLost()from"gui";
+import void GUI_EngineCallback_Loop()from"gui";
+import void GUI_EngineCallback_GetActiveScreens(int[]&result)from"gui";
+import void GUI_EngineCallback_ItemChanged(bool onMap)from"gui";
+import bool GUI_EngineCallback_CheckInterfaceHit(int x,int y)from"gui";
+import void GUI_Callback_OnResolutionChanged()from"gui";
+import void GUI_Callback_OnLanguageChanged()from"gui";                                                                                                                                                                                                                    
+
+shared class GUIObject
+{
+	bool get_Active()final{return _ActiveSelf&&(_Parent!is null?_Parent.Active:true);}
+	bool get_ActiveSelf()final{return _ActiveSelf;}
+	string@get_Name()final{return _Name;}
+	int get_PosX()final{return _Parent!is null?_AbsolutePosX-_Parent._AbsolutePosX:_AbsolutePosX;}
+	int get_PosY()final{return _Parent!is null?_AbsolutePosY-_Parent._AbsolutePosY:_AbsolutePosY;}
+	int get_AbsolutePosX()final{return _AbsolutePosX;}
+	int get_AbsolutePosY()final{return _AbsolutePosY;}
+	int get_Width()final{return _Width;}
+	int get_Height()final{return _Height;}
+	int get_Anchor()final{return _Anchor;}
+	int get_Dock()final{return _Dock;}
+	bool get_IsDraggable()final{return _IsDraggable;}
+	bool get_IsNotHittable()final{return _IsNotHittable;}
+	bool get_CheckTransparentOnHit()final{return _CheckTransparentOnHit;}
+	bool get_IsFocused()final{return _IsFocused;}
+	bool get_IsPressed()final{return _IsPressed;}
+	bool get_IsHovered()final{return _IsHovered;}
+	bool get_IsDragged()final{return _IsDragged||(_Parent!is null&&_Parent.IsDragged);}
+	uint get_ChildCount()final{return _Children.length();}
+	GUIObject@get_Parent()final{return _Parent;}
+	GUIScreen@get_Screen()final{return _Parent!is null?_Parent.Screen:cast<GUIScreen>(this);}
+	GUIGrid@get_Grid()final{return _Grid;}
+	uint get_CellIndex()final{return _CellIndex;}
+	
+	bool _ActiveSelf;
+	string@_Name;
+	int _BasePosX;
+	int _BasePosY;
+	int _BaseWidth;
+	int _BaseHeight;
+	int _AbsolutePosX;
+	int _AbsolutePosY;
+	int _Width;
+	int _Height;
+	int _Anchor;
+	int _Dock;
+	bool _IsDragged;
+	bool _IsDraggable;
+	bool _IsNotHittable;
+	bool _CheckTransparentOnHit;
+	bool _DeferredMousePressed;
+	bool _IsFocused;
+	bool _IsPressed;
+	bool _IsHovered;
+	int _PressedButton;
+	int _PressedX;
+	int _PressedY;
+	uint _PressedRepeatTime;
+	GUIObject@_Parent;
+	GUIObject@[]_Children;
+	GUIGrid@_Grid;
+	uint _CellIndex; 
+	
+	void OnConstruct(){}
+	void OnInit(){}
+	void OnShow(){}
+	void OnShow(dictionary@params){}
+	void OnHide(){}
+	void OnAppear(){}
+	void OnAppear(dictionary@params){}
+	void OnDisappear(){}
+	void OnRemove(){}
+	void OnDraw(){}
+	void OnMove(int deltaX,int deltaY){}
+	void OnMouseDown(int button){}
+	void OnMouseUp(int button,bool lost){}
+	void OnMousePressed(int button){}
+	void OnLMousePressed(){}
+	void OnRMousePressed(){}
+	void OnMouseClick(int button){}
+	void OnLMouseClick(){}
+	void OnRMouseClick(){}
+	void OnMouseMove(){}
+	void OnGlobalMouseDown(int button){}
+	void OnGlobalMouseUp(int button){}
+	void OnGlobalMousePressed(int button){}
+	void OnGlobalMouseClick(int button){}
+	void OnGlobalMouseMove(){}
+	void OnInput(){}
+	void OnInput(uint8 key){}
+	void OnInput(string&text){}
+	void OnInput(uint8 key,string@text){}
+	void OnGlobalInput(uint8 key,string@text){}
+	void OnActiveChanged(){}
+	void OnFocusChanged(){}
+	void OnHoverChanged(){}
+	void OnDragChanged(){}
+	void OnResizeGrid(GUIObject@cell,uint cellIndex){}
+	void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex){}
+	
+	void Init(GUIObject@parent)
+	{
+		_ActiveSelf=true;
+		@_Name=reflection::typeof<GUIObject>(this).nameWithoutNamespace;
+		
+		if(_Parent!is null)
+		_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+		@_Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(this);
+		
+		_Construct();
+		
+		GUIScreen@screen=Screen;
+		if(screen!is null&&screen._IsRegistered)
+		_Init();
+		
+		_RefreshPosition();
+	}
+	
+	void _Construct()
+	{
+		OnConstruct();
+	}
+	
+	void _Init()
+	{
+		OnInit();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Init();
+	}
+	
+	void _Show(dictionary@params)
+	{
+		OnShow();
+		OnShow(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Show(params);
+	}
+	
+	void _Hide()
+	{
+		OnHide();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Hide();
+	}
+	
+	void _Appear(dictionary@params)
+	{
+		OnAppear();
+		OnAppear(params);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Appear(params);
+	}
+	
+	void _Disappear()
+	{
+		OnDisappear();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Disappear();
+	}
+	
+	void Remove()
+	{
+		if(_Parent!is null)
+		{
+			_Parent._Children.removeAt(_Parent._Children.findByRef(this));
+			@_Parent=null;
+		}
+		
+		_Remove();
+		
+		_ActiveSelf=false;
+	}
+	
+	void _Remove()
+	{
+		OnRemove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Remove();
+	}
+	
+	void _Reload(bool reconstruct,bool refreshPosition)
+	{
+		if(reconstruct)
+		OnConstruct();
+		if(refreshPosition)
+		_RefreshPosition();
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Reload(reconstruct,refreshPosition);
+	}
+	
+	void _DrawCallback()
+	{
+		
+		if(_Grid!is null)
+		{
+			GUIItemView@itemView=cast<GUIItemView>(_Grid);
+			if(itemView!is null)
+			OnDrawItem(itemView.GetItem(_CellIndex),this,_CellIndex);
+		} 
+		
+		OnDraw();
+	}
+	
+	void _Draw(bool callCallback)
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._ActiveSelf&&!child._IsDragged)
+			child._Draw(true);
+		}
+	}
+	
+	void Draw(int x,int y)
+	{
+		int dx=x-_AbsolutePosX;
+		int dy=y-_AbsolutePosY;
+		_Move(dx,dy,false,false);
+		_Draw(true);
+		_Move(-dx,-dy,false,false);
+	}
+	
+	void Move(int deltaX,int deltaY)
+	{
+		_Move(deltaX,deltaY,true,true);
+	}
+	
+	void _Move(int deltaX,int deltaY,bool callCallback,bool moveBasePos)
+	{
+		_AbsolutePosX+=deltaX;
+		_AbsolutePosY+=deltaY;
+		
+		if(moveBasePos)
+		{
+			_BasePosX+=deltaX;
+			_BasePosY+=deltaY;
+		}
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._Move(deltaX,deltaY,false,false);
+		
+		if(callCallback)
+		_MoveCallback(deltaX,deltaY);
+	}
+	
+	void _MoveCallback(int deltaX,int deltaY)
+	{
+		OnMove(deltaX,deltaY);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._MoveCallback(deltaX,deltaY);
+	}
+	
+	bool _IsHitch()
+	{
+		bool result=(!_IsDraggable&&cast<GUIPanel>(this)!is null&&cast<GUIButton>(this)is null&&cast<GUIGrid>(this)is null);
+		return result&&(Parent!is null?Parent._IsHitch():true);
+	}
+	
+	GUIObject@FindMouseHit()
+	{
+		return FindHit(__MouseX,__MouseY);
+	}
+	
+	GUIObject@FindHit(int x,int y)
+	{
+		
+		for(int i=int(_Children.length())-1;i>=0;i--)
+		{
+			GUIObject@obj=_Children[i].FindHit(x,y);
+			if(obj!is null)
+			return obj;
+		} 
+		
+		if(IsHit(x,y))
+		return this; 
+		
+		return null;
+	}
+	
+	bool IsMouseHit()
+	{
+		return IsHit(__MouseX,__MouseY);
+	}
+	
+	bool IsHit(int x,int y)
+	{
+		return Active&&!_IsNotHittable&&_Width>0&&_Height>0&&((x)>=(_AbsolutePosX)&&(x)<(_AbsolutePosX)+(_Width)&&(y)>=(_AbsolutePosY)&&(y)<(_AbsolutePosY)+(_Height));
+	}
+	
+	void _GetWholeSizeRect(int[]&rect)
+	{
+		int l=_AbsolutePosX;
+		int t=_AbsolutePosY;
+		int r=l+Width;
+		int b=t+Height;
+		
+		if(l<rect[0])
+		rect[0]=l;
+		if(t<rect[1])
+		rect[1]=t;
+		if(r>rect[2])
+		rect[2]=r;
+		if(b>rect[3])
+		rect[3]=b;
+		
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GetWholeSizeRect(rect);
+	}
+	
+	void GetWholeSize(int&centerX,int&centerY,int&wholeWidth,int&wholeHeight)
+	{
+		int[]rect={1000000000,1000000000,-1000000000,-1000000000};
+		_GetWholeSizeRect(rect);
+		wholeWidth=rect[2]-rect[0];
+		wholeHeight=rect[3]-rect[1];
+		centerX=rect[0]+wholeWidth/2;
+		centerY=rect[1]+wholeHeight/2;
+	}
+	
+	void _MouseDown(int button)
+	{
+		_IsPressed=true;
+		_PressedButton=button;
+		_PressedX=__MouseX;
+		_PressedY=__MouseY;
+		OnMouseDown(button);
+		
+		if(_IsDraggable&&_PressedButton==(0))
+		{
+			bool draggableCursor=(GetCurrentCursor()==(6));
+			if(draggableCursor)
+			{
+				_IsDragged=true;
+				OnDragChanged();
+			}
+		}
+		
+		if(!_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(button);
+			_MousePressed(button);
+		}
+		_PressedRepeatTime=GetTick()+500;
+	}
+	
+	void _MousePressed(int button)
+	{
+		OnMousePressed(button);
+		if(button==(0))
+		OnLMousePressed();
+		else if(button==(1))
+		OnRMousePressed();
+		_PressedRepeatTime=GetTick()+40;
+	}
+	
+	void _MouseUp(bool lost)
+	{
+		_IsPressed=false;
+		
+		if(_DeferredMousePressed)
+		{
+			Screen._GlobalMousePressed(_PressedButton);
+			_MousePressed(_PressedButton);
+		}
+		
+		OnMouseUp(_PressedButton,lost);
+		
+		if(_IsDragged)
+		{
+			_IsDragged=false;
+			OnDragChanged();
+		}
+	}
+	
+	void MouseClick(int button)
+	{
+		OnMouseClick(button);
+		if(button==(0))
+		OnLMouseClick();
+		else if(button==(1))
+		OnRMouseClick();
+	}
+	
+	void _MouseMove()
+	{
+		OnMouseMove();
+	}
+	
+	void _GlobalMouseDown(int button)
+	{
+		OnGlobalMouseDown(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseDown(button);
+	}
+	
+	void _GlobalMouseUp(int button)
+	{
+		OnGlobalMouseUp(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseUp(button);
+	}
+	
+	void _GlobalMousePressed(int button)
+	{
+		OnGlobalMousePressed(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMousePressed(button);
+	}
+	
+	void _GlobalMouseClick(int button)
+	{
+		OnGlobalMouseClick(button);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseClick(button);
+	}
+	
+	void _GlobalMouseMove()
+	{
+		OnGlobalMouseMove();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalMouseMove();
+	}
+	
+	void Input(uint8 key,string@text)
+	{
+		OnInput();
+		if(text is null)
+		OnInput(key);
+		else
+		OnInput(text);
+		OnInput(key,text);
+	}
+	
+	void _GlobalInput(uint8 key,string@text)
+	{
+		OnGlobalInput(key,text);
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._GlobalInput(key,text);
+	}
+	
+	void _Focus()
+	{
+		if(!_IsFocused)
+		{
+			_IsFocused=true;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Unfocus()
+	{
+		if(_IsFocused)
+		{
+			_IsFocused=false;
+			OnFocusChanged();
+		}
+	}
+	
+	void _Hover()
+	{
+		if(!_IsHovered)
+		{
+			_IsHovered=true;
+			OnHoverChanged();
+		}
+	}
+	
+	void _Unhover()
+	{
+		if(_IsHovered)
+		{
+			_IsHovered=false;
+			OnHoverChanged();
+		}
+	}
+	
+	GUIObject@_Clone(GUIObject@parent=null)
+	{
+		GUIObject@newObject=_CloneExt(parent);
+		newObject._Init();
+		return@newObject;
+	}
+	
+	GUIObject@_CloneExt(GUIObject@parent)
+	{
+		GUIObject@newObject;
+		reflection::typeof<GUIObject>(this).instantiate(@this,@newObject);
+		newObject._Children.resize(0);
+		@newObject._Parent=parent;
+		if(parent!is null)
+		parent._Children.insertLast(newObject);
+		newObject.OnConstruct();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._CloneExt(newObject);
+		return@newObject;
+	}
+	
+	GUIPanel@FindPanel(string&name)
+	{
+		return cast<GUIPanel>(Find(name));
+	}
+	
+	GUIText@FindText(string&name)
+	{
+		return cast<GUIText>(Find(name));
+	}
+	
+	GUITextInput@FindTextInput(string&name)
+	{
+		return cast<GUITextInput>(Find(name));
+	}
+	
+	GUIButton@FindButton(string&name)
+	{
+		return cast<GUIButton>(Find(name));
+	}
+	
+	GUIObject@Find(string&name,bool deepFind=true)
+	{
+		for(uint i=0;i<_Children.length();i++)
+		{
+			GUIObject@child=_Children[i];
+			if(child._Name!is null&&child._Name==name)
+			return child;
+			
+			if(deepFind)
+			{
+				GUIObject@obj=child.Find(name);
+				if(obj!is null)
+				return obj;
+			}
+		}
+		return null;
+	}
+	
+	GUIObject@GetChild(uint index)
+	{
+		return _Children[index];
+	}
+	
+	void _RefreshPosition()
+	{
+		
+		_Width=_BaseWidth;
+		_Height=_BaseHeight;
+		int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+		int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+		int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+		int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+		int parentBaseWidth=(_Parent!is null?_Parent._BaseWidth:_BaseWidth);
+		int parentBaseHeight=(_Parent!is null?_Parent._BaseHeight:_BaseHeight); 
+		
+		int newPosX;
+		int newPosY;
+		if(_Dock!=0)
+		{
+			if(_Dock==(1))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(2))
+			{
+				newPosX=parentAbsolutePosX+parentWidth-_Width;
+				newPosY=parentAbsolutePosY;
+				_Height=parentHeight;
+			}
+			else if(_Dock==(3))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(4))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY+parentHeight-_Height;
+				_Width=parentWidth;
+			}
+			else if(_Dock==(5))
+			{
+				newPosX=parentAbsolutePosX;
+				newPosY=parentAbsolutePosY;
+				_Width=parentWidth;
+				_Height=parentHeight;
+			}
+			else
+			{
+				newPosX=_BasePosX+parentAbsolutePosX;
+				newPosY=_BasePosY+parentAbsolutePosY;
+			}
+		}
+		
+		else
+		{
+			if((_Anchor&(0x1))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX;
+			else if((_Anchor&(0x2))!=0)
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth);
+			else
+			newPosX=parentAbsolutePosX+_BasePosX+(parentWidth-parentBaseWidth)/2;
+			
+			if((_Anchor&(0x4))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY;
+			else if((_Anchor&(0x8))!=0)
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight);
+			else
+			newPosY=parentAbsolutePosY+_BasePosY+(parentHeight-parentBaseHeight)/2;
+		} 
+		
+		if(newPosX!=_AbsolutePosX||newPosY!=_AbsolutePosY)
+		_Move(newPosX-_AbsolutePosX,newPosY-_AbsolutePosY,false,false);
+	}
+	
+	void _SizeChanged()
+	{
+		
+	} 
+	
+	void SetName(string@name)
+	{
+		@_Name=name;
+	}
+	
+	void SetActive(bool active)
+	{
+		if(_ActiveSelf!=active)
+		{
+			_ActiveSelf=active;
+			_ActiveChanged();
+		}
+	}
+	
+	void _ActiveChanged()
+	{
+		OnActiveChanged();
+		for(uint i=0;i<_Children.length();i++)
+		_Children[i]._ActiveChanged();
+	}
+	
+	void SetPosition(int x,int y)
+	{
+		if(_BasePosX==x&&_BasePosY==y)
+		return;
+		
+		_BasePosX=x;
+		_BasePosY=y;
+		_RefreshPosition();
+	}
+	
+	void SetPosition(string&iniKey)
+	{
+		
+		string@str=GetIfaceIniStr(iniKey);
+		if(@str==null||str=="")
+		return;
+		
+		string@[]@valuesStr=splitEx(str," ");
+		if(valuesStr.length()!=4)
+		return;
+		
+		int[]values(4);
+		for(int i=0;i<4;i++)
+		values[i]=valuesStr[i].toInt();
+		
+		_BasePosX=values[0];
+		_BasePosY=values[1];
+		_BaseWidth=values[2]-values[0];
+		_BaseHeight=values[3]-values[1];
+		_RefreshPosition();
+	}
+	
+	void SetSize(int w,int h)
+	{
+		if(_BaseWidth==w&&_BaseHeight==h)
+		return;
+		
+		_BaseWidth=w;
+		_BaseHeight=h;
+		_RefreshPosition();
+		_SizeChanged();
+	}
+	
+	void SetAnchor(int anchorStyles)
+	{
+		if(_Anchor==anchorStyles)
+		return;
+		
+		_Anchor=anchorStyles;
+		_RefreshPosition();
+	}
+	
+	void SetDock(int dockStyle)
+	{
+		if(_Dock==dockStyle)
+		return;
+		
+		_Dock=dockStyle;
+		_RefreshPosition();
+	}
+	
+	void SetDraggable(bool enabled)
+	{
+		_IsDraggable=enabled;
+	}
+	
+	void SetNotHittable(bool enabled)
+	{
+		_IsNotHittable=enabled;
+	}
+	
+	void SetCheckTransparentOnHit(bool enabled)
+	{
+		_CheckTransparentOnHit=enabled;
+	}
+	
+	void SetDeferredMousePressed(bool enabled)
+	{
+		_DeferredMousePressed=enabled;
+	}
+}
+
+shared class GUIPanel:GUIObject
+{
+	Sprite@get_BackgroundImage()final{return _BackgroundImage;}
+	int get_BackgroundImageLayout()final{return _BackgroundImage!is null?_BackgroundImage.Layout:(0);}
+	
+	Sprite@_BackgroundImage;
+	
+	bool IsHit(int x,int y)override
+	{
+		if(GUIObject::IsHit(x,y))
+		{
+			if(_CheckTransparentOnHit&&_BackgroundImage!is null)
+			return(GetPixelColor(_BackgroundImage.Id,_BackgroundImage.Frame,x-_AbsolutePosX,y-_AbsolutePosY)&0xFF000000)!=0;
+			return true;
+		}
+		return false;
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		if(_BackgroundImage!is null)
+		_DrawImage(_BackgroundImage);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void _DrawImage(Sprite@image)
+	{
+		if(_Width>0&&_Height>0)
+		image.Draw(_AbsolutePosX,_AbsolutePosY,_Width,_Height);
+	}
+	
+	void SetBackgroundImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageName,imageLayout);
+	}
+	
+	void SetBackgroundImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_BackgroundImage,imageNameHash,imageLayout);
+	}
+	
+	void _SetImage(Sprite@&curImage,string@imageName,int imageLayout)
+	{
+		@curImage=null;
+		if(imageName!is null)
+		{
+			Sprite spr;
+			spr.Load(imageName,(findFirst(imageName,"/")!=-1||findFirst(imageName,"\\")!=-1)?(0):(4));
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+	
+	void _SetImage(Sprite@&curImage,uint imageNameHash,int imageLayout)
+	{
+		if(curImage!is null&&curImage.LoadedNameHash==imageNameHash)
+		return;
+		
+		@curImage=null;
+		if(imageNameHash!=0)
+		{
+			Sprite spr;
+			spr.Load(imageNameHash);
+			if(spr.Id!=0)
+			@curImage=spr;
+		}
+		
+		if(curImage!is null)
+		curImage.Layout=imageLayout;
+		
+		if(curImage!is null&&(imageLayout==(0)||(_BaseWidth==0&&_BaseHeight==0)))
+		SetSize(curImage.Width,curImage.Height);
+	}
+}
+
+shared class GUIText:GUIObject
+{
+	string@get_Text(){return _Text;}
+	int get_TextFont()final{return _TextFont;}
+	uint get_TextColor()final{return _TextColor;}
+	uint get_TextColorFocused()final{return _TextColorFocused;}
+	int get_TextFlags()final{return _TextFlags;}
+	
+	string _Text;
+	int _TextFont=((5));
+	uint _TextColor=((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))));
+	uint _TextColorFocused;
+	int _TextFlags;
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetText(string@text,int font,int flags)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+		
+		_TextFont=font;
+		_TextFlags=flags;
+	}
+	
+	void SetText(string@text)
+	{
+		if(text!is null)
+		_Text=text;
+		else
+		_Text="";
+	}
+	
+	void SetTextFont(int font)
+	{
+		_TextFont=font;
+	}
+	
+	void SetTextFlags(int flags)
+	{
+		_TextFlags=flags;
+	}
+	
+	void SetTextColor(uint color)
+	{
+		_TextColor=color;
+	}
+	
+	void SetTextFocusedColor(uint color)
+	{
+		_TextColorFocused=color;
+	}
+} 
+
+shared class GUITextInput:GUIText
+{
+	uint get_InputLength()final{return _InputLength;}
+	bool get_IsTextPassword()final{return _IsTextPassword;}
+	string get_PasswordChar()final{return _PasswordChar;}
+	
+	uint _InputLength;
+	bool _IsTextPassword;
+	string _PasswordChar;
+	uint _PasswordTime;
+	int _CarriagePos;
+	
+	void _Construct()override
+	{
+		SetCarriage(false);
+		_TextColorFocused=((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF))));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback(); 
+		
+		string@text=Text;
+		if(_IsTextPassword)
+		{
+			string@rawText=text;
+			@text="";
+			for(uint i=0;i<rawText.length();i++)
+			text+=_PasswordChar;
+			if(GetTick()-_PasswordTime<=(1000))
+			text[-1]=rawText[-1];
+		}
+		if(_CarriagePos!=-1&&_IsFocused)
+		{
+			if(_CarriagePos<0)
+			_CarriagePos=0;
+			if(_CarriagePos>int(text.length()))
+			_CarriagePos=text.length();
+			@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		}
+		if(text.length()>0)
+		{
+			uint color=(_IsFocused&&_TextColorFocused!=0?_TextColorFocused:_TextColor);
+			DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,color,_TextFont,_TextFlags);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		uint oldLen=_Text.length();
+		_ProcessKey(key,text,_Text,_CarriagePos);
+		while(_InputLength!=0&&_Text.length()>_InputLength)
+		_Text[-1]="";
+		if(_IsTextPassword)
+		_PasswordTime=(_Text.length()>oldLen?GetTick():0);
+		
+		GUIText::Input(key,text);
+	}
+	
+	bool _ProcessKey(uint8 key,string@text,string&resultText,int&carriagePos)
+	{
+		if(carriagePos!=-1)
+		{
+			if(carriagePos<0)
+			carriagePos=0;
+			else if(carriagePos>int(resultText.length()))
+			carriagePos=resultText.length();
+			
+			if(key==0x0E)
+			{
+				if(carriagePos>0)
+				{
+					resultText[carriagePos-1]="";
+					carriagePos--;
+				}
+			}
+			else if(key==0xD3)
+			{
+				if(carriagePos<int(resultText.length()))
+				resultText[carriagePos]="";
+			}
+			else if(key==0xCD)
+			{
+				if(carriagePos<int(resultText.length()))
+				carriagePos++;
+			}
+			else if(key==0xCB)
+			{
+				if(carriagePos>0)
+				carriagePos--;
+			}
+			else if(key==0xC7)
+			{
+				carriagePos=0;
+			}
+			else if(key==0xCF)
+			{
+				carriagePos=resultText.length();
+			}
+			else if(text!is null)
+			{
+				resultText=resultText.substring(0,carriagePos)+text+resultText.substring(carriagePos);
+				carriagePos+=text.length();
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if(key==0x0E)
+			{
+				if(resultText.length()>0)
+				resultText[-1]="";
+			}
+			else if(text!is null)
+			{
+				resultText+=text;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	void SetInputLength(uint length)
+	{
+		_InputLength=length;
+	}
+	
+	void SetInputPassword(string@passwordChar)
+	{
+		_IsTextPassword=(@passwordChar!=null&&passwordChar.length()==1);
+		_PasswordChar=passwordChar;
+		_PasswordTime=0;
+	}
+	
+	void SetCarriage(bool enable)
+	{
+		_CarriagePos=(enable?int(_Text.length()):-1);
+	}
+}
+
+shared class GUIButton:GUIPanel
+{
+	bool get_IsDisabled()final{return _IsDisabled;}
+	bool get_IsSwitched()final{return _IsSwitched;}
+	Sprite@get_PressedImage()final{return _PressedImage;}
+	int get_PressedImageLayout()final{return _PressedImage!is null?_PressedImage.Layout:(0);}
+	Sprite@get_HoverImage()final{return _HoverImage;}
+	int get_HoverImageLayout()final{return _HoverImage!is null?_HoverImage.Layout:(0);}
+	Sprite@get_DisabledImage()final{return _DisabledImage;}
+	int get_DisabledImageLayout()final{return _DisabledImage!is null?_DisabledImage.Layout:(0);}
+	
+	bool _IsDisabled;
+	bool _IsSwitched;
+	Sprite@_PressedImage;
+	Sprite@_HoverImage;
+	Sprite@_DisabledImage;
+	
+	void _Construct()override
+	{
+		_DeferredMousePressed=true;
+		
+		GUIPanel::_Construct();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		if(!_IsDisabled)
+		{
+			
+			bool isPressed=((_IsPressed&&_PressedButton==(0))||_IsSwitched);
+			if(isPressed&&_PressedImage!is null)
+			_DrawImage(_PressedImage);
+			
+			else if(_IsHovered&&_HoverImage!is null)
+			_DrawImage(_HoverImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		else
+		{
+			
+			if(_DisabledImage!is null)
+			_DrawImage(_DisabledImage);
+			
+			else if(_BackgroundImage!is null)
+			_DrawImage(_BackgroundImage);
+		}
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void _MousePressed(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		GUIPanel::_MousePressed(button);
+	}
+	
+	void SetPressedImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageName,imageLayout);
+	}
+	
+	void SetPressedImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_PressedImage,imageNameHash,imageLayout);
+	}
+	
+	void SetHoverImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageName,imageLayout);
+	}
+	
+	void SetHoverImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_HoverImage,imageNameHash,imageLayout);
+	}
+	
+	void SetDisabledImage(string@imageName,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageName,imageLayout);
+	}
+	
+	void SetDisabledImage(uint imageNameHash,int imageLayout=(0))
+	{
+		_SetImage(_DisabledImage,imageNameHash,imageLayout);
+	}
+	
+	void SetSwitch(bool enabled)
+	{
+		_IsSwitched=enabled;
+	}
+	
+	void SetCondition(bool enabled)
+	{
+		_IsDisabled=!enabled;
+	}
+}
+
+shared class GUICheckBox:GUIButton
+{
+	bool get_IsChecked()final{return _IsSwitched;} 
+	
+	void OnCheckedChanged(){}
+	
+	void MouseClick(int button)
+	{
+		if(_IsDisabled)
+		return;
+		
+		if(button==(0))
+		SetChecked(!_IsSwitched);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)
+	{
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIRadioButton:GUICheckBox
+{
+	void MouseClick(int button)
+	{
+		if(_IsDisabled||_IsSwitched)
+		return;
+		
+		if(button==(0))
+		SetChecked(true);
+		
+		GUIPanel::MouseClick(button);
+	}
+	
+	void SetChecked(bool checked)override
+	{
+		if(checked&&_Parent!is null)
+		{
+			for(uint i=0;i<_Parent._Children.length();i++)
+			{
+				GUIRadioButton@button=cast<GUIRadioButton>(_Parent._Children[i]);
+				if(button!is null&&button._IsSwitched)
+				{
+					button._IsSwitched=false;
+					button.OnCheckedChanged();
+				}
+			}
+		}
+		
+		if(_IsSwitched!=checked)
+		{
+			_IsSwitched=checked;
+			OnCheckedChanged();
+		}
+	}
+}
+
+shared class GUIScreen:GUIPanel
+{
+	int get_Index()final{return _Index;}
+	bool get_IsHardcoded()final{return _IsHardcoded;}
+	bool get_IsMain()final{return((_Index)>=(1)&&(_Index)<=(7));}
+	bool get_IsModal()final{return _IsModal;}
+	bool get_IsMultiinstance()final{return _IsMultiinstance;}
+	bool get_IsCloseOnMiss()final{return _IsCloseOnMiss;}
+	int[]get_AvailableCursors()final{return _AvailableCursors;}
+	int get_Cursor()final{return _Cursor;}
+	bool get_IsCanMove()final{return _IsCanMove;}
+	bool get_IsMoveIgnoreBorders()final{return _IsMoveIgnoreBorders;}
+	
+	int _Index;
+	bool _IsHardcoded;
+	bool _IsRegistered;
+	bool _IsModal;
+	bool _IsMultiinstance;
+	bool _IsCloseOnMiss;
+	int[]_AvailableCursors;
+	int _Cursor;
+	bool _IsCanMove;
+	bool _IsMoveIgnoreBorders; 
+	
+	bool[]@_InputKeyPressed;
+	bool[]@_InputMousePressed;
+	
+	void _Show(dictionary@params)override
+	{
+		
+		_ActiveSelf=true; 
+		
+		_Cursor=(_AvailableCursors.length()>0?AvailableCursors[0]:(0)); 
+		
+		GUIPanel::_Show(params);
+	}
+	
+	void _Hide()override
+	{
+		
+		_ActiveSelf=false; 
+		
+		GUIPanel::_Hide();
+	}
+	
+	void _Appear(dictionary@params)override
+	{
+		
+		ChangeCursor(_Cursor); 
+		
+		GUIPanel::_Appear(params);
+	}
+	
+	void _Disappear()override
+	{
+		
+		_Cursor=GetCurrentCursor(); 
+		
+		GUIPanel::_Disappear();
+	}
+	
+	void _GlobalMouseClick(int button)override
+	{
+		if(button==(1))
+		{
+			if(_AvailableCursors.length()>0)
+			{
+				int curCursor=GetCurrentCursor();
+				int curCursorIndex=_AvailableCursors.find(curCursor);
+				if(curCursorIndex!=-1)
+				{
+					curCursorIndex++;
+					if(curCursorIndex>=int(_AvailableCursors.length()))
+					curCursorIndex=0;
+					ChangeCursor(_AvailableCursors[curCursorIndex]);
+				}
+			}
+		}
+		else
+		{
+			GUIPanel::_GlobalMouseClick(button);
+		}
+	}
+	
+	void _GlobalMouseMove()override
+	{
+		
+		if(_IsCanMove)
+		{
+			GUIObject@pressedObj=_FindPressed(this);
+			if(pressedObj!is null&&pressedObj._PressedButton==(0)&&pressedObj._IsHitch())
+			{
+				int lastPosX=_AbsolutePosX;
+				int lastPosY=_AbsolutePosY;
+				int newPosX=_AbsolutePosX+(__MouseX-pressedObj._PressedX);
+				int newPosY=_AbsolutePosY+(__MouseY-pressedObj._PressedY);
+				pressedObj._PressedX=__MouseX;
+				pressedObj._PressedY=__MouseY; 
+				
+				if(!_IsMoveIgnoreBorders)
+				{
+					int parentAbsolutePosX=(_Parent!is null?_Parent._AbsolutePosX:0);
+					int parentAbsolutePosY=(_Parent!is null?_Parent._AbsolutePosY:0);
+					int parentWidth=(_Parent!is null?_Parent._Width:__ScreenWidth);
+					int parentHeight=(_Parent!is null?_Parent._Height:__ScreenHeight);
+					int px=newPosX;
+					int py=newPosY;
+					if(newPosX<parentAbsolutePosX)
+					newPosX=parentAbsolutePosX;
+					if(newPosY<parentAbsolutePosY)
+					newPosY=parentAbsolutePosY;
+					if(newPosX+_Width>parentWidth)
+					newPosX=parentWidth-_Width;
+					if(newPosY+_Height>parentHeight)
+					newPosY=parentHeight-_Height;
+					pressedObj._PressedX+=newPosX-px;
+					pressedObj._PressedY+=newPosY-py;
+				} 
+				
+				if(lastPosX!=newPosX||lastPosY!=newPosY)
+				{
+					int deltaX=newPosX-lastPosX;
+					int deltaY=newPosY-lastPosY;
+					_Move(deltaX,deltaY,true,true);
+				}
+			}
+		}
+		
+		GUIPanel::_GlobalMouseMove();
+	}
+	
+	GUIObject@_FindPressed(GUIObject@obj)
+	{
+		if(obj._IsPressed)
+		return obj;
+		for(uint i=0;i<obj._Children.length();i++)
+		{
+			GUIObject@pressedObj=_FindPressed(obj._Children[i]);
+			if(pressedObj!is null)
+			return pressedObj;
+		}
+		return null;
+	} 
+	
+	void SetModal(bool enabled)
+	{
+		_IsModal=enabled;
+	}
+	
+	void SetMultiinstance(bool enabled)
+	{
+		_IsMultiinstance=enabled;
+	}
+	
+	void SetCloseOnMiss(bool enabled)
+	{
+		_IsCloseOnMiss=enabled;
+	}
+	
+	void SetAvailableCursors(int[]cursors)
+	{
+		_AvailableCursors=cursors;
+	}
+	
+	void SetCanMove(bool enabled,bool ignoreBorders)
+	{
+		_IsCanMove=enabled;
+		_IsMoveIgnoreBorders=ignoreBorders;
+	}
+}
+
+shared class GUIGrid:GUIPanel
+{
+	string@get_CellPrototype()final{return _CellPrototype;}
+	uint get_GridSize()final{return _GridSize;}
+	int get_Columns()final{return _Columns;}
+	int get_PaddingX()final{return _PaddingX;}
+	int get_PaddingY()final{return _PaddingY;}
+	GUIObject@[]get_Cells()final{return _Cells;}
+	
+	string@_CellPrototype;
+	uint _GridSize;
+	int _Columns;
+	int _PaddingX;
+	int _PaddingY;
+	GUIObject@[]_Cells;
+	
+	void _Init()override
+	{
+		if(_CellPrototype!is null)
+		SetCellPrototype(_CellPrototype);
+		
+		if(_GridSize>0)
+		ResizeGrid(_GridSize);
+		
+		GUIPanel::_Init();
+	}
+	
+	void ResizeGrid(uint size)
+	{
+		
+		if(_CellPrototype is null||_CellPrototype.length()==0)
+		return;
+		GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+		if(cellPrototype is null)
+		return; 
+		
+		int childIndex=-1;
+		if(cellPrototype._Parent is this)
+		childIndex=cellPrototype._Parent._Children.findByRef(cellPrototype); 
+		
+		for(uint i=0;i<_Children.length();)
+		{
+			if(_Cells.findByRef(_Children[i])!=-1)
+			_Children.removeAt(i);
+			else
+			i++;
+		}
+		_Cells.resize(0); 
+		
+		cellPrototype._ActiveSelf=true;
+		GUIObject@[]cellInstances;
+		int col=0,row=0;
+		for(uint i=0;i<size;i++)
+		{
+			GUIObject@cellInstance=cellPrototype._CloneExt(this);
+			_Children.removeLast();
+			_Children.insertAt(++childIndex,cellInstance);
+			_Cells.insertLast(cellInstance);
+			_SetCellIndex(cellInstance,this,cellInstances.length());
+			cellInstances.insertLast(cellInstance);
+			cellInstance._Move(col*(cellInstance._Width+_PaddingX),row*(cellInstance._Height+_PaddingY),false,true);
+			
+			if(++col>=_Columns)
+			{
+				col=0;
+				row++;
+			}
+		}
+		cellPrototype._ActiveSelf=false; 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		{
+			OnResizeGrid(cellInstances[i],i);
+			_ResizeGrid(cellInstances[i],cellInstances[i],i);
+		} 
+		
+		for(uint i=0;i<cellInstances.length();i++)
+		cellInstances[i]._Init();
+	}
+	
+	void _SetCellIndex(GUIObject@obj,GUIGrid@grid,uint cellIndex)
+	{
+		@obj._Grid=grid;
+		obj._CellIndex=cellIndex;
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_SetCellIndex(obj._Children[i],grid,cellIndex);
+	}
+	
+	void _ResizeGrid(GUIObject@obj,GUIObject@cell,uint cellIndex)
+	{
+		obj.OnResizeGrid(cell,cellIndex);
+		
+		for(uint i=0;i<obj._Children.length();i++)
+		_ResizeGrid(obj._Children[i],cell,cellIndex);
+	}
+	
+	void SetCellPrototype(string name)
+	{
+		@_CellPrototype=name;
+		if(_CellPrototype!is null&&_CellPrototype.length()>0)
+		{
+			GUIObject@cellPrototype=(_CellPrototype[0]!="."?Find(_CellPrototype):Parent.Find(_CellPrototype.substring(1),false));
+			if(cellPrototype!is null)
+			cellPrototype._ActiveSelf=false;
+		}
+	}
+	
+	void SetGridSize(uint size)
+	{
+		_GridSize=size;
+	}
+	
+	void SetColumns(int length)
+	{
+		_Columns=length;
+	}
+	
+	void SetPadding(int x,int y)
+	{
+		_PaddingX=x;
+		_PaddingY=y;
+	}
+}
+
+shared class GUIMessageBox:GUIText
+{
+	string[]get_MessageTexts()final{return _MessageTexts;}
+	int[]get_MessageTypes()final{return _MessageTypes;}
+	string[]get_MessageTimes()final{return _MessageTimes;}
+	bool[]get_DisplayedMessages()final{return _DisplayedMessages;}
+	bool get_InvertMessages()final{return _InvertMessages;}
+	
+	string[]_MessageTexts;
+	int[]_MessageTypes;
+	string[]_MessageTimes;
+	bool[]_DisplayedMessages;
+	bool _InvertMessages;
+	int _Scroll;
+	int _MaxScroll;
+	int _ScrollLines;
+	Sprite _ScrollUp;
+	Sprite _ScrollDown;
+	
+	void _Construct()override
+	{
+		_DisplayedMessages=array<bool>((10),true);
+		
+		_ScrollUp.Load("SUPARROW.FRM",(4));
+		_ScrollDown.Load("SDNARROW.FRM",(4));
+		
+		GUIText::_Construct();
+	}
+	
+	void _Show(dictionary@params)override
+	{
+		GUIText::_Show(params);
+		
+		_InvertMessages=__MsgboxInvert;
+		_GenerateText();
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(!_InvertMessages)
+		_TextFlags=(0x0040)|(0x0020)|(0x0800|((_ScrollLines)<<16));
+		else
+		_TextFlags=(0x0400|((_ScrollLines)<<16));
+		
+		GUIText::_Draw(callCallback);
+		
+		if(_IsHovered)
+		{
+			Sprite@spr=(__MouseY<_AbsolutePosY+_Height/2?_ScrollUp:_ScrollDown);
+			spr.Draw(__MouseX-spr.Width/2,__MouseY-spr.Height/2);
+		}
+	}
+	
+	void _Remove()override
+	{
+		__HideCursor=false;
+		
+		GUIText::_Remove();
+	}
+	
+	void _Hover()override
+	{
+		GUIText::_Hover();
+		
+		__HideCursor=true;
+	}
+	
+	void _Unhover()override
+	{
+		GUIText::_Unhover();
+		
+		__HideCursor=false;
+	}
+	
+	void _SizeChanged()override
+	{
+		_GenerateText();
+		
+		GUIText::_SizeChanged();
+	}
+	
+	void _MousePressed(int button)override
+	{
+		if(button==(0)||button==(3)||button==(4))
+		{
+			if(button==(3)||(button==(0)&&__MouseY<_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll>0)
+				_Scroll--;
+				if(!_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+			}
+			else if(button==(4)||(button==(0)&&__MouseY>=_AbsolutePosY+_Height/2))
+			{
+				if(_InvertMessages&&_Scroll<_MaxScroll)
+				_Scroll++;
+				if(!_InvertMessages&&_Scroll>0)
+				_Scroll--;
+			}
+			_GenerateText();
+		}
+		
+		GUIText::_MousePressed(button);
+	}
+	
+	void AddMessage(string@text,int type=(0))
+	{
+		
+		if(type==(0)&&text=="error")
+		return; 
+		
+		string messageText;
+		if(type>=(0)&&type<=(3))
+		{
+			uint[]sayColors={((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xAA)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0xAA)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0x66)&0xFF)<<8)|((0)&0xFF))))};
+			messageText="|"+sayColors[type]+" "+EncodeUTF8((0x2022))+" |"+((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF))))+" "+text;
+		}
+		else
+		{
+			messageText=text;
+		}
+		_MessageTexts.insertLast(messageText); 
+		
+		int messageType=type;
+		_MessageTypes.insertLast(messageType); 
+		
+		uint16 year=0;
+		uint16 month=0;
+		uint16 day=0;
+		uint16 dayOfWeek=0;
+		uint16 hour=0;
+		uint16 minute=0;
+		uint16 second=0;
+		uint16 milliseconds;
+		GetTime(year,month,day,dayOfWeek,hour,minute,second,milliseconds);
+		string messageTime=(hour<=9?"0":"")+hour+":"+(minute<=9?"0":"")+minute+":"+(second<=9?"0":"")+second+" ";
+		_MessageTimes.insertLast(messageTime); 
+		
+		if(_DisplayedMessages[type])
+		{
+			if(_Scroll>0&&_IsHovered)
+			_Scroll++;
+			else
+			_Scroll=0;
+		}
+		_GenerateText();
+	}
+	
+	void _GenerateText()
+	{
+		if(!Active)
+		return;
+		
+		_Text="";
+		if(_MessageTexts.length()==0)
+		return;
+		
+		int tw=0,th=0;
+		int maxLines=0;
+		GetTextInfo(null,_Width,_Height,_TextFont,0,tw,th,maxLines);
+		if(maxLines<=0)
+		{
+			_MaxScroll=0;
+			_ScrollLines=0;
+			return;
+		}
+		
+		_ScrollLines=-1;
+		int lines=0;
+		for(int i=_MessageTexts.length()-1;i>=0;i--)
+		{
+			string@messageText=_MessageTexts[i];
+			int messageType=_MessageTypes[i];
+			string@messageTime=_MessageTimes[i]; 
+			
+			if(!_DisplayedMessages[messageType])
+			continue; 
+			
+			int curLines=lines;
+			int skipLines=0;
+			GetTextInfo(messageText,_Width,1000,_TextFont,0,tw,th,skipLines);
+			lines+=skipLines;
+			
+			if(_ScrollLines<0)
+			{
+				if(lines<=_Scroll)
+				continue;
+				_ScrollLines=_Scroll-curLines;
+			}
+			
+			if(curLines-_Scroll<maxLines)
+			{
+				
+				if(_InvertMessages)
+				_Text+=messageText+"\n";
+				else
+				_Text=messageText+"\n"+_Text;
+			}
+			else
+			{
+				break;
+			}
+		}
+		_MaxScroll=lines-maxLines;
+		if(_ScrollLines<0)
+		_ScrollLines=0;
+	}
+	
+	bool _SetDisplayedMessage(int messageType,bool enable)
+	{
+		bool generateText=false;
+		
+		if(messageType!=(10))
+		{
+			if(_DisplayedMessages[messageType]!=enable)
+			{
+				_DisplayedMessages[messageType]=enable;
+				generateText=true;
+			}
+		}
+		else
+		{
+			for(uint i=0;i<(10);i++)
+			{
+				if(_DisplayedMessages[messageType]!=enable)
+				{
+					_DisplayedMessages[messageType]=enable;
+					generateText=true;
+				}
+			}
+		}
+		
+		return generateText;
+	}
+	
+	void SetDisplayedMessages(int[]messageTypes)
+	{
+		bool generateText=false;
+		bool displayAll=(messageTypes.find((10))!=-1);
+		for(uint i=0;i<_DisplayedMessages.length();i++)
+		if(_SetDisplayedMessage(i,displayAll||messageTypes.find(i)!=-1))
+		generateText=true;
+		if(generateText)
+		_GenerateText();
+	}
+	
+	void ChangeDisplayedMessage(int messageType,bool enable)
+	{
+		if(_SetDisplayedMessage(messageType,enable))
+		_GenerateText();
+	}
+	
+	void SetInvertMessages(bool invert)
+	{
+		_InvertMessages=invert;
+		_GenerateText();
+	}
+} 
+
+shared class GUIConsole:GUITextInput
+{
+	string get_HistoryStorageName()final{return _HistoryStorageName;}
+	string[]@get_History()final{
+		return _History;
+	}
+	uint get_HistoryMaxLength()final{return _HistoryMaxLength;}
+	
+	string@_HistoryStorageName;
+	string _HistoryActualStorageName;
+	string[]_History;
+	uint _HistoryMaxLength;
+	uint _HistoryCur;
+	
+	void _Construct()override
+	{
+		SetCarriage(true);
+		@_HistoryStorageName="";
+		
+		GUITextInput::_Construct();
+	}
+	
+	void Toggle()
+	{
+		if(!Active)
+		{
+			
+			Activate();
+		}
+		else if(_Text.length()==0)
+		{
+			
+			Deactivate();
+		}
+		else
+		{
+			
+			SendText();
+		}
+	}
+	
+	void Activate()
+	{
+		
+		if(Active||!Parent.Active)
+		return; 
+		
+		string actualStorageName="";
+		if(_HistoryStorageName!is null&&__Name!is null&&__Name!="")
+		actualStorageName="console_"+__Name+_HistoryStorageName;
+		
+		if(_HistoryActualStorageName!=actualStorageName)
+		{
+			_History.resize(0);
+			_HistoryActualStorageName=actualStorageName;
+			if(_HistoryActualStorageName!="")
+			{
+				Serializator data;
+				if(data.Load(_HistoryActualStorageName))
+				data.Get(_History);
+			}
+		}
+		
+		_HistoryCur=_History.length(); 
+		
+		SetActive(true);
+	}
+	
+	void Deactivate()
+	{
+		
+		if(_ActiveSelf)
+		SetActive(false);
+	}
+	
+	void SendText()
+	{
+		if(!Active)
+		return; 
+		
+		_History.insertLast(_Text);
+		for(uint i=0;i<_History.length()-1;)
+		{
+			if(_History[i]==_History.last())
+			_History.removeAt(i);
+			else
+			i++;
+		} 
+		
+		uint historyMaxLength=(_HistoryMaxLength!=0?_HistoryMaxLength:__ConsoleHistorySize);
+		while(_History.length()>historyMaxLength)
+		_History.removeAt(0);
+		_HistoryCur=_History.length(); 
+		
+		if(_HistoryActualStorageName!="")
+		{
+			Serializator data;
+			data.Set(_History);
+			data.Save(_HistoryActualStorageName);
+		} 
+		
+		bool[]@keyPressed=Screen._InputKeyPressed;
+		if(keyPressed[0x1D]||keyPressed[0x9D])
+		CustomCall("ConsoleMessage\n/s"+_Text,"\n");
+		else if(keyPressed[0x38]||keyPressed[0xB8])
+		CustomCall("ConsoleMessage\n/w"+_Text,"\n");
+		else if(keyPressed[0x2A]||keyPressed[0x36])
+		CustomCall("ConsoleMessage\n/r"+_Text,"\n");
+		else
+		CustomCall("ConsoleMessage\n"+_Text,"\n"); 
+		
+		_Text="";
+		_CarriagePos=0;
+	}
+	
+	void _GlobalInput(uint8 key,string@text)override
+	{
+		GUITextInput::_GlobalInput(key,text);
+		
+		if(Active)
+		{
+			if(key==0xC8&&_HistoryCur>0)
+			{
+				_HistoryCur--;
+				_Text=_History[_HistoryCur];
+				_CarriagePos=_Text.length();
+			}
+			else if(key==0xD0)
+			{
+				if(_HistoryCur+1<_History.length())
+				{
+					_HistoryCur++;
+					_Text=_History[_HistoryCur];
+					_CarriagePos=_Text.length();
+				}
+				else
+				{
+					_HistoryCur=_History.length();
+					_Text="";
+					_CarriagePos=0;
+				}
+				
+			}
+			else
+			{
+				GUITextInput::Input(key,text);
+			}
+		}
+		
+		if(key==0x1C||key==0x9C)
+		{
+			Toggle();
+		}
+	}
+	
+	void Input(uint8 key,string@text)override
+	{
+		GUIText::Input(key,text);
+	}
+	
+	void _Draw(bool callCallback)override
+	{
+		if(callCallback)
+		_DrawCallback();
+		
+		string@text=Text;
+		
+		if(_CarriagePos<0)
+		_CarriagePos=0;
+		if(_CarriagePos>int(text.length()))
+		_CarriagePos=text.length();
+		
+		@text=text.substring(0,_CarriagePos)+(GetTick()%800<400?"!":".")+text.substring(_CarriagePos);
+		DrawText(text,_AbsolutePosX,_AbsolutePosY,_Width,_Height,_TextColor,_TextFont,_TextFlags);
+		
+		GUIObject::_Draw(false);
+	}
+	
+	void SetHistoryStorage(string storageName)
+	{
+		
+		_HistoryStorageName=storageName;
+	}
+	
+	void SetHistoryMaxLength(uint length)
+	{
+		_HistoryMaxLength=length;
+	}
+}
+
+shared class GUIItemView:GUIGrid
+{
+	int get_UserData()final{return _UserData;}
+	bool get_UseSorting()final{return _UseSorting;}
+	uint get_CritterId()final{return _CritterId;}
+	ItemCl@[]@get_Items()final{
+		return _Items;
+	}
+	int get_Scroll()final{return _Scroll;}
+	
+	int _UserData;
+	bool _UseSorting;
+	uint _CritterId;
+	ItemCl@[]_Items;
+	int _Scroll; 
+	
+	int OnCheckItem(ItemCl@item){return-1;}
+	void OnScrollChanged(){}
+	
+	ItemCl@GetItem(uint cellIndex)
+	{
+		int itemIndex=cellIndex+_Scroll;
+		return(itemIndex>=0&&itemIndex<int(_Items.length())?_Items[itemIndex]:null);
+	}
+	
+	void Resort()
+	{
+		_Resort(); 
+		
+		int maxScroll=int(_Items.length())-int(_GridSize);
+		if(_Columns>0)
+		maxScroll+=maxScroll%_Columns;
+		if(maxScroll<0)
+		maxScroll=0;
+		if(_Scroll>maxScroll)
+		SetScroll(maxScroll);
+	}
+	
+	void _Resort()
+	{
+		_Items.resize(0);
+		
+		CritterCl@cr=(_CritterId==0?GetChosen():GetCritter(_CritterId));
+		if(cr!is null)
+		{
+			ItemCl@[]items;
+			cr.GetItems(-1,items);
+			if(!_UseSorting)
+			{
+				for(uint i=0;i<items.length();i++)
+				{
+					int itemIndex=OnCheckItem(items[i]);
+					if(itemIndex>=0)
+					{
+						if(itemIndex>=int(_Items.length()))
+						_Items.resize(itemIndex+1);
+						@_Items[itemIndex]=items[i];
+					}
+				}
+			}
+			else
+			{
+				int[]sortValues;
+				for(uint i=0;i<items.length();i++)
+				{
+					int sortValue=OnCheckItem(items[i]);
+					if(sortValue>=0)
+					{
+						bool added=false;
+						for(uint j=0;j<_Items.length();j++)
+						{
+							if(sortValues[j]>sortValue)
+							{
+								_Items.insertAt(j,items[i]);
+								sortValues.insertAt(j,sortValue);
+								added=true;
+								break;
+							}
+						}
+						if(!added)
+						{
+							_Items.insertLast(items[i]);
+							sortValues.insertLast(sortValue);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	void SetUserData(int data)
+	{
+		_UserData=data;
+	}
+	
+	void SetUseSorting(bool enable)
+	{
+		_UseSorting=enable;
+	}
+	
+	void SetScroll(int value,bool checkAvailability=false)
+	{
+		if(checkAvailability&&!CheckScrollAvailability(value))
+		return;
+		
+		_Scroll=value;
+		OnScrollChanged();
+	}
+	
+	bool CheckScrollAvailability(int value)
+	{
+		if(value<_Scroll)
+		{
+			int minScroll=0;
+			return value>=minScroll;
+		}
+		if(value>_Scroll)
+		{
+			int maxScroll=int(_Items.length())-int(_GridSize);
+			if(_Columns>0)
+			maxScroll+=maxScroll%_Columns;
+			if(maxScroll<0)
+			maxScroll=0;
+			return value<=maxScroll;
+		}
+		return false;
+	}
+	
+	void SetCritter(uint crId)
+	{
+		_CritterId=crId;
+		_Resort();
+	}
+}  
+
+﻿                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
+void TryExit()
+{
+	GUIScreen@screen=GUI_GetActiveScreen();
+	if(screen.IsHardcoded)
+	{
+		CustomCall("TryExit");
+		return;
+	}
+	
+	switch(screen.Index)
+	{
+		case(0):
+		break;
+		
+		case(1):
+		__Quit=true;
+		break;
+		case(2):
+		case(3):
+		case(4):
+		ShowScreen((1));
+		break;
+		case(7):
+		CustomCall("NetDisconnect");
+		break;
+		case(6):
+		case(5):
+		if(GetCurrentCursor()==(2)||GetCurrentCursor()==(3)||GetCurrentCursor()==(4))
+		ChangeCursor((0));
+		else
+		ShowScreen((18));
+		break;
+		
+		default:
+		if(!screen.IsMain)
+		HideScreen(screen.Index);
+		break;
+	}
+}
+
+void NextCursor()
+{
+	switch(GetCurrentCursor())
+	{
+		case(0):
+		ChangeCursor((1));
+		break;
+		case(1):
+		{
+			CritterCl@chosen=GetChosen();
+			uint8 mode=0;
+			if(chosen!is null&&chosen.Param[(238)]>0&&chosen.GetSlotProto((1),mode).Type==(3))
+			ChangeCursor((3));
+			else
+			ChangeCursor((0));
+		}
+		break;
+		case(2):
+		ChangeCursor((0));
+		break;
+		case(3):
+		ChangeCursor((0));
+		break;
+		case(4):
+		ChangeCursor((1));
+		break;
+		default:
+		ChangeCursor((0));
+		break;
+	}
+} 
+
+void InitializeScreens()
+{
+	Login::Init((1));
+	Registration::Init((2));
+	Options::Init((4));
+	Game::Init((5));
+	Inventory::Init((10));
+	Cursor::Init((-1));
+}
+
+namespace Login
+{
+	class Login:GUIScreen
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,50);
+			SetSize(800,600);
+			SetDock((5));
+		}
+		
+		void OnGlobalInput(uint8 key,string@text)override
+		{
+			if(key==0x1C||key==0x9C)
+			CustomCall("Login\n"+Screen.FindText("InputLogin").Text+"\n"+Screen.FindText("InputPassword").Text,"\n");
+		}
+	}
+	
+	class Menu:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(80,60);
+			SetSize(640,480);
+			SetBackgroundImage("art/intrface/login.png");
+		}
+	}
+	
+	class Play:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,207);
+			SetSize(19,19);
+			SetPressedImage("art/intrface/login_button_down.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			if(!__Singleplayer)
+			CustomCall("Login\n"+Screen.FindText("InputLogin").Text+"\n"+Screen.FindText("InputPassword").Text,"\n");
+			else
+			ShowScreen((2));
+		}
+	}
+	
+	class Text1:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,1);
+			SetTextFont((7));
+		}
+		
+		string@get_Text()override
+		{
+			return GetMsgStr((3),(302));
+		}
+	}
+	
+	class Registration:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,237);
+			SetSize(19,19);
+			SetPressedImage("art/intrface/login_button_down.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			if(!__Singleplayer)
+			ShowScreen((2));
+			else
+			ShowScreen((34));
+		}
+	}
+	
+	class Text2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,1);
+			SetText(GetMsgStr((3),(303)));
+			SetTextFont((7));
+		}
+	}
+	
+	class Options:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,267);
+			SetSize(19,19);
+			SetPressedImage("art/intrface/login_button_down.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((4));
+		}
+	}
+	
+	class Text3:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,1);
+			SetText(GetMsgStr((3),(304)));
+			SetTextFont((7));
+		}
+	}
+	
+	class About:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,297);
+			SetSize(19,19);
+			SetPressedImage("art/intrface/login_button_down.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((3));
+		}
+	}
+	
+	class Text4:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,1);
+			SetText(GetMsgStr((3),(305)));
+			SetTextFont((7));
+		}
+	}
+	
+	class Exit:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,327);
+			SetSize(19,19);
+			SetPressedImage("art/intrface/login_button_down.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			TryExit();
+		}
+	}
+	
+	class Text5:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,1);
+			SetText(GetMsgStr((3),(306)));
+			SetTextFont((7));
+		}
+	}
+	
+	class InputLogin:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(80,141);
+			SetSize(145,18);
+			SetTextFlags((0x0004)|(0x0008));
+			SetInputLength(__MaxNameLength);
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			SetText(__Name);
+		}
+	}
+	
+	class InputPassword:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(80,168);
+			SetSize(145,18);
+			SetTextFlags((0x0004)|(0x0008));
+			SetInputLength(__MaxNameLength);
+			SetInputPassword("#");
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			SetText(CustomCall("GetPassword"));
+		}
+	}
+	
+	class Version:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(10,5);
+			SetAnchor((0x1)|(0x4));
+			SetText(GetMsgStr((3),(1)));
+			SetTextColor(((uint((0xFF<<24)|(((0xFF)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0xFF)&0xFF)))));
+		}
+	}
+	
+	class MessageBox:GUIMessageBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(30,50);
+			SetSize(370,50);
+			SetAnchor((0x1)|(0x4));
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Login _Login();
+		_Login.Init(null);
+		Menu _Menu();
+		_Menu.Init(_Login);
+		Play _Play();
+		_Play.Init(_Menu);
+		Text1 _Text1();
+		_Text1.Init(_Play);
+		Registration _Registration();
+		_Registration.Init(_Menu);
+		Text2 _Text2();
+		_Text2.Init(_Registration);
+		Options _Options();
+		_Options.Init(_Menu);
+		Text3 _Text3();
+		_Text3.Init(_Options);
+		About _About();
+		_About.Init(_Menu);
+		Text4 _Text4();
+		_Text4.Init(_About);
+		Exit _Exit();
+		_Exit.Init(_Menu);
+		Text5 _Text5();
+		_Text5.Init(_Exit);
+		InputLogin _InputLogin();
+		_InputLogin.Init(_Menu);
+		InputPassword _InputPassword();
+		_InputPassword.Init(_Menu);
+		Version _Version();
+		_Version.Init(_Login);
+		MessageBox _MessageBox();
+		_MessageBox.Init(_Login);
+		GUI_RegisterScreen(screenIndex,_Login);
+	}
+}
+
+namespace Registration
+{
+	import void player_data_generate(int[]&params)from"client_main";
+	import bool player_data_check(int[]&params)from"client_main";
+	
+	int[]ShowBaseStats={(0),(1),(2),(3),(4),(5),(6)};
+	int[]ShowHealthStats={(7),(500),(501),(502),(503),(504),(505),(506)};
+	int[]ShowExtendedStats={(9),(8),(11),(10),(23),(31),(30),(12),(13),(14)};
+	int[]ShowTraitsLeft={(550),(551),(552),(553),(554),(555),(556),(557)};
+	int[]ShowTraitsRight={(558),(559),(560),(561),(562),(563),(564),(565)};
+	int[]ShowSkills={(200),(201),(202),(203),(204),(205),(206),(207),(208),(209),(210),(211),(212),(213),(214),(215),(216),(217)};
+	
+	int[]Params((1000));
+	
+	int CurTip=-1;
+	
+	int GetParam(int param)
+	{
+		return Params[param];
+	}
+	
+	void GenParams()
+	{
+		player_data_generate(Params);
+	}
+	
+	int GetUnspentStatPoints()
+	{
+		int unspent=__StartSpecialPoints;
+		for(uint i=0;i<ShowBaseStats.length();i++)
+		unspent-=__RegParams[ShowBaseStats[i]];
+		return unspent;
+	}
+	
+	string@FormatXX(int value)
+	{
+		value=(((value)>(99))?(99):(((value)<(0))?(0):(value)));
+		return value<10?"0"+value:""+value;
+	}
+	
+	class Character:GUIScreen
+	{
+		void OnConstruct()override
+		{
+			SetModal(true);
+			SetSize(800,600);
+			SetDock((5));
+		}
+		
+		void OnInit()override
+		{
+			GenParams();
+		}
+	}
+	
+	class Main:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(80,60);
+			SetSize(640,480);
+			SetBackgroundImage("art/intrface/registr.png");
+		}
+	}
+	
+	class BaseStats:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(15,35);
+			SetCellPrototype("BaseStat");
+			SetGridSize(ShowBaseStats.length());
+		}
+	}
+	
+	class BaseStat:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(155,33);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowBaseStats[cellIndex];
+		}
+	}
+	
+	class StatName:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(4,4);
+			SetSize(40,20);
+			SetText("TXT");
+			SetTextFont((8));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+		
+		void OnInit()override
+		{
+			Text=GetMsgStr((3),(400+(cast<BaseStat>(Parent).Param)));
+		}
+	}
+	
+	class StatValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(44,2);
+			SetSize(30,24);
+			SetTextFont((2));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return FormatXX(GetParam(cast<BaseStat>(Parent).Param));
+		}
+	}
+	
+	class StatValueDesc:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(87,4);
+			SetSize(45,20);
+			SetTextFlags((0x0004)|(0x0008));
+		}
+		
+		string@get_Text()override
+		{
+			return GetMsgStr((3),((GetParam(cast<BaseStat>(Parent).Param))>10?(2320):((GetParam(cast<BaseStat>(Parent).Param))<1?(2311):2310+(GetParam(cast<BaseStat>(Parent).Param)))));
+		}
+	}
+	
+	class StatInc:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(134,4);
+			SetSize(16,12);
+			SetPressedImage("art/intrface/plus_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			int param=cast<BaseStat>(Parent).Param;
+			if(Params[param]<10&&GetUnspentStatPoints()>0)
+			{
+				__RegParams[param]++;
+				GenParams();
+			}
+		}
+	}
+	
+	class StatDec:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(134,15);
+			SetSize(16,12);
+			SetPressedImage("art/intrface/minus_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			int param=cast<BaseStat>(Parent).Param;
+			if(Params[param]>1)
+			{
+				__RegParams[param]--;
+				GenParams();
+			}
+		}
+	}
+	
+	class BaseStatPoints:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,276);
+		}
+	}
+	
+	class Title1:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-4,4);
+			SetSize(100,30);
+			SetText(GetMsgStr((3),(336)));
+			SetTextFont((7));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class StatPointsValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(97,2);
+			SetSize(34,30);
+			SetTextFont((2));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return FormatXX(GetUnspentStatPoints());
+		}
+	}
+	
+	class HealthStats:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(192,42);
+			SetCellPrototype("HealthStat");
+			SetGridSize(ShowHealthStats.length());
+		}
+	}
+	
+	class HealthStat:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(122,14);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowHealthStats[cellIndex];
+		}
+	}
+	
+	class StatDesc:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetSize(122,13);
+			SetTextFlags((0x0008));
+		}
+		
+		void OnDraw()override
+		{
+			int param=cast<HealthStat>(Parent).Param;
+			uint color;
+			if(param==(501))
+			color=(GetParam((74))!=0?0:((uint((0xFF<<24)|(((0x30)&0xFF)<<16)|(((0x30)&0xFF)<<8)|((0x30)&0xFF)))));
+			else if(param==(500))
+			color=(GetParam((73))!=0?0:((uint((0xFF<<24)|(((0x30)&0xFF)<<16)|(((0x30)&0xFF)<<8)|((0x30)&0xFF)))));
+			else
+			color=(GetParam(param)!=0?0:((uint((0xFF<<24)|(((0x30)&0xFF)<<16)|(((0x30)&0xFF)<<8)|((0x30)&0xFF)))));
+			SetTextColor(color);
+		}
+		
+		string@get_Text()override
+		{
+			int param=cast<HealthStat>(Parent).Param;
+			if(param==(7))
+			return GetMsgStr((3),(407))+"  "+GetParam((72))+" / "+GetParam((7));
+			return GetMsgStr((3),(100000+(param)*10+1));
+		}
+	}
+	
+	class ExtendedStats:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(192,179);
+			SetCellPrototype("ExtendedStat");
+			SetGridSize(ShowExtendedStats.length());
+		}
+	}
+	
+	class ExtendedStat:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(122,13);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowExtendedStats[cellIndex];
+		}
+	}
+	
+	class StatName2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetSize(100,13);
+			SetText("TXT");
+			SetTextFlags((0x0008));
+		}
+		
+		void OnInit()override
+		{
+			int param=cast<ExtendedStat>(Parent).Param;
+			Text=GetMsgStr((3),(100000+(param)*10+3));
+		}
+	}
+	
+	class StatValue2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(98,0);
+			SetSize(25,13);
+			SetTextFlags((0x0008));
+		}
+		
+		string@get_Text()override
+		{
+			int param=cast<ExtendedStat>(Parent).Param;
+			string text;
+			if(param==(11))
+			text=""+(GetParam(param)/1000);
+			else if(param==(23)||param==(23))
+			text=""+GetParam(param)+"%";
+			else
+			text=""+GetParam(param);
+			return text;
+		}
+	}
+	
+	class Traits:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(19,347);
+		}
+	}
+	
+	class TraitsLeft:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(4,6);
+			SetCellPrototype("TraitLeft");
+			SetGridSize(ShowTraitsLeft.length());
+		}
+	}
+	
+	class TraitLeft:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(150,13);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowTraitsLeft[cellIndex];
+		}
+	}
+	
+	class Switcher1:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetSize(17,11);
+			SetPressedImage("art/intrface/tag_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			int param=cast<TraitLeft>(Parent).Param;
+			if(__RegParams[param]==0)
+			{
+				int count=0;
+				for(uint i=(__TraitBegin);i<=(__TraitEnd);i++)
+				if(__RegParams[i]!=0)
+				count++;
+				if(count<2)
+				__RegParams[param]=1;
+			}
+			else
+			{
+				__RegParams[param]=0;
+			}
+			
+			Parent.FindText("TraitName1").SetTextColor(__RegParams[param]!=0?((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))):0);
+			
+			GenParams();
+		}
+	}
+	
+	class TraitName1:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,-1);
+			SetSize(140,13);
+			SetText("TXT");
+			SetTextFlags((0x0008));
+		}
+		
+		void OnInit()override
+		{
+			Text=GetMsgStr((3),(100000+(cast<TraitLeft>(Parent).Param)*10+1));
+		}
+	}
+	
+	class TraitsRight:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(154,6);
+			SetCellPrototype("TraitRight");
+			SetGridSize(ShowTraitsRight.length());
+		}
+	}
+	
+	class TraitRight:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(148,13);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowTraitsRight[cellIndex];
+		}
+	}
+	
+	class Switcher2:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(125,0);
+			SetSize(17,11);
+			SetPressedImage("art/intrface/tag_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			int param=cast<TraitRight>(Parent).Param;
+			if(__RegParams[param]==0)
+			{
+				int count=0;
+				for(uint i=(__TraitBegin);i<=(__TraitEnd);i++)
+				if(__RegParams[i]!=0)
+				count++;
+				if(count<2)
+				__RegParams[param]=1;
+			}
+			else
+			{
+				__RegParams[param]=0;
+			}
+			
+			Parent.FindText("TraitName2").SetTextColor(__RegParams[param]!=0?((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))):0);
+			
+			GenParams();
+		}
+	}
+	
+	class TraitName2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(10,-1);
+			SetSize(110,13);
+			SetText("TXT");
+			SetTextFlags((0x0008));
+		}
+		
+		void OnInit()override
+		{
+			Text=GetMsgStr((3),(100000+(cast<TraitRight>(Parent).Param)*10+1));
+		}
+	}
+	
+	class Skills:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(348,26);
+			SetCellPrototype("Skill");
+			SetGridSize(ShowSkills.length());
+		}
+	}
+	
+	class Skill:GUIPanel
+	{
+		int Param;
+		
+		void OnConstruct()override
+		{
+			SetSize(280,11);
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			Param=ShowSkills[cellIndex];
+		}
+	}
+	
+	class TagSkill:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-2,0);
+			SetSize(17,11);
+			SetPressedImage("art/intrface/tag_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			int param=cast<Skill>(Parent).Param;
+			int freeTagSkills=__StartTagSkillPoints-(__RegParams[(226)]!=0?1:0)-(__RegParams[(227)]!=0?1:0)-(__RegParams[(228)]!=0?1:0)-(__RegParams[(229)]!=0?1:0);
+			
+			if(__RegParams[(226)]==param)
+			__RegParams[(226)]=0;
+			else if(__RegParams[(227)]==param)
+			__RegParams[(227)]=0;
+			else if(__RegParams[(228)]==param)
+			__RegParams[(228)]=0;
+			else if(__RegParams[(229)]==param)
+			__RegParams[(229)]=0;
+			else if(__RegParams[(226)]==0&&freeTagSkills>0)
+			__RegParams[(226)]=param;
+			else if(__RegParams[(227)]==0&&freeTagSkills>0)
+			__RegParams[(227)]=param;
+			else if(__RegParams[(228)]==0&&freeTagSkills>0)
+			__RegParams[(228)]=param;
+			else if(__RegParams[(229)]==0&&freeTagSkills>0)
+			__RegParams[(229)]=param;
+			
+			bool tagged=(__RegParams[(226)]==param||__RegParams[(227)]==param||__RegParams[(228)]==param||__RegParams[(229)]==param);
+			Parent.FindText("SkillName").SetTextColor(tagged?((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))):0);
+			Parent.FindText("SkillValue").SetTextColor(tagged?((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF)))):0);
+			
+			GenParams();
+		}
+	}
+	
+	class SkillName:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,-1);
+			SetSize(200,13);
+			SetText("TXT");
+			SetTextFlags((0x0008));
+		}
+		
+		void OnInit()override
+		{
+			Text=GetMsgStr((3),(100000+(cast<Skill>(Parent).Param)*10+1));
+		}
+	}
+	
+	class SkillValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(225,-1);
+			SetSize(40,13);
+			SetTextFlags((0x0008));
+		}
+		
+		string@get_Text()override
+		{
+			return GetParam(cast<Skill>(Parent).Param)+"%";
+		}
+	}
+	
+	class Title3:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(19,-25);
+			SetSize(150,24);
+			SetText(GetMsgStr((3),(328)));
+			SetTextFont((7));
+			SetTextFlags((0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class UnspentSkillPoints:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(352,227);
+		}
+	}
+	
+	class Title2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(1,1);
+			SetSize(150,26);
+			SetText(GetMsgStr((3),(335)));
+			SetTextFont((7));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class UnspentValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(171,1);
+			SetSize(30,25);
+			SetTextFont((2));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			int freeTagSkills=__StartTagSkillPoints-(__RegParams[(226)]!=0?1:0)-(__RegParams[(227)]!=0?1:0)-(__RegParams[(228)]!=0?1:0)-(__RegParams[(229)]!=0?1:0);
+			return FormatXX(freeTagSkills);
+		}
+	}
+	
+	class Tip:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(342,264);
+		}
+		
+		void OnDraw()override
+		{
+			GUIObject@obj=GUI_GetFocusedObject();
+			if(obj is null)
+			return;
+			
+			int param=-1;   
+			
+			if(param==-1&&cast<BaseStat>(obj.Parent)!is null)param=cast<BaseStat>(obj.Parent).Param;
+			if(param==-1&&cast<HealthStat>(obj.Parent)!is null)param=cast<HealthStat>(obj.Parent).Param;
+			if(param==-1&&cast<ExtendedStat>(obj.Parent)!is null)param=cast<ExtendedStat>(obj.Parent).Param;
+			if(param==-1&&cast<TraitLeft>(obj.Parent)!is null)param=cast<TraitLeft>(obj.Parent).Param;
+			if(param==-1&&cast<TraitRight>(obj.Parent)!is null)param=cast<TraitRight>(obj.Parent).Param;
+			if(param==-1&&cast<Skill>(obj.Parent)!is null)param=cast<Skill>(obj.Parent).Param;
+			
+			if(param!=-1&&CurTip!=param)
+			{
+				CurTip=param;
+				FindText("Name").Text=GetMsgStr((3),(100000+(param)*10+1));
+				FindText("Desc").Text=GetMsgStr((3),(100000+(param)*10+2));
+				FindPanel("Image").SetBackgroundImage(GetConstantName((3),param));
+			}
+		}
+	}
+	
+	class Image:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(141,44);
+		}
+	}
+	
+	class Name:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(8,7);
+			SetSize(270,31);
+			SetTextFont((6));
+			SetTextColor(((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class Desc:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(8,44);
+			SetSize(150,124);
+			SetTextColor(((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class Buttons:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(334,448);
+		}
+	}
+	
+	class Print:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(31,0);
+		}
+	}
+	
+	class Button1:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-21,6);
+			SetSize(15,16);
+			SetPressedImage("art/intrface/red_button_dn.png");
+		}
+	}
+	
+	class Text7:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-2,5);
+			SetText(GetMsgStr((3),(327)));
+			SetTextFont((7));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class Done:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(141,0);
+		}
+	}
+	
+	class Button2:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-19,6);
+			SetSize(15,16);
+			SetPressedImage("art/intrface/red_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("Register");
+		}
+	}
+	
+	class Text8:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-2,5);
+			SetText(GetMsgStr((3),(325)));
+			SetTextFont((7));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class Back:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(237,0);
+		}
+	}
+	
+	class Button3:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-18,6);
+			SetSize(15,16);
+			SetPressedImage("art/intrface/red_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			TryExit();
+		}
+	}
+	
+	class Text9:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-1,5);
+			SetText(GetMsgStr((3),(326)));
+			SetTextFont((7));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+	}
+	
+	class CharacterName:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(21,1);
+		}
+	}
+	
+	class Button4:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-10,-1);
+			SetSize(145,35);
+			SetPressedImage("art/intrface/name_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			Screen.FindPanel("CharacterNamePopUp").SetActive(true);
+		}
+	}
+	
+	class CharacterText:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(67,13);
+			SetNotHittable(true);
+			SetTextFont((7));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return __RegName;
+		}
+	}
+	
+	class CharacterAge:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(160,1);
+		}
+	}
+	
+	class Button5:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-6,-1);
+			SetSize(81,32);
+			SetPressedImage("art/intrface/age_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			Screen.FindPanel("CharacterAgePopUp").SetActive(true);
+		}
+	}
+	
+	class AgeText:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(39,13);
+			SetNotHittable(true);
+			SetTextFont((7));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return""+GetParam((70));
+		}
+	}
+	
+	class CharacterGender:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(240,1);
+		}
+	}
+	
+	class Button6:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(-6,-1);
+			SetSize(80,32);
+			SetPressedImage("art/intrface/gender_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			Screen.FindPanel("CharacterGenderPopUp").SetActive(true);
+		}
+	}
+	
+	class GenderText:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(32,13);
+			SetNotHittable(true);
+			SetTextFont((7));
+			SetTextFlags((0x0004)|(0x0008));
+			SetTextColor(((uint((0xFF<<24)|(((0x8F)&0xFF)<<16)|(((0x6F)&0xFF)<<8)|((0)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return GetParam((71))==(0)?GetMsgStr((3),(4107)):GetMsgStr((3),(4108));
+		}
+	}
+	
+	class CharacterNamePopUp:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(21,5);
+			SetSize(168,108);
+			SetBackgroundImage("art/intrface/cha_name.png");
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			if(ActiveSelf)
+			SetActive(false);
+		}
+		
+		void OnGlobalMouseDown(int button)override
+		{
+			if(Active&&!IsMouseHit())
+			SetActive(false);
+		}
+		
+		void OnActiveChanged()override
+		{
+			if(Active)
+			GUI_SetFocusedObject(FindTextInput("ChaName"));
+		}
+	}
+	
+	class ChaName:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,32);
+			SetSize(120,14);
+			SetTextFlags((0x0004)|(0x0008));
+			SetInputLength(__MaxNameLength);
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			SetText(__RegName);
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__RegName=Text;
+			
+			if(key==0x1C||key==0x9C)
+			Parent.SetActive(false);
+		}
+	}
+	
+	class ChaPassword:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(22,73);
+			SetSize(120,14);
+			SetTextFlags((0x0004)|(0x0008));
+			SetInputLength(__MaxNameLength);
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			SetText(__RegPassword);
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__RegPassword=Text;
+			
+			if(key==0x1C||key==0x9C)
+			Parent.SetActive(false);
+		}
+	}
+	
+	class CharacterAgePopUp:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(126,5);
+			SetSize(139,43);
+			SetBackgroundImage("art/intrface/cha_age.png");
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			if(ActiveSelf)
+			SetActive(false);
+		}
+		
+		void OnGlobalMouseDown(int button)override
+		{
+			if(Active&&!IsMouseHit())
+			SetActive(false);
+		}
+	}
+	
+	class IncAge:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(101,11);
+			SetSize(20,18);
+			SetPressedImage("art/intrface/age_inc_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			__RegParams[(70)]++;
+			if(__RegParams[(70)]>(60))
+			__RegParams[(70)]=(14);
+			GenParams();
+		}
+	}
+	
+	class DecAge:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(17,11);
+			SetSize(20,18);
+			SetPressedImage("art/intrface/age_dec_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			__RegParams[(70)]--;
+			if(__RegParams[(70)]<(14))
+			__RegParams[(70)]=(60);
+			GenParams();
+		}
+	}
+	
+	class AgeValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(54,8);
+			SetSize(30,24);
+			SetTextFont((2));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			return FormatXX(GetParam((70)));
+		}
+	}
+	
+	class CharacterGenderPopUp:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(208,5);
+			SetSize(139,72);
+			SetBackgroundImage("art/intrface/cha_sex.png");
+		}
+		
+		void OnShow(dictionary@params)override
+		{
+			if(ActiveSelf)
+			SetActive(false);
+		}
+		
+		void OnGlobalMouseDown(int button)override
+		{
+			if(Active&&!IsMouseHit())
+			SetActive(false);
+		}
+	}
+	
+	class Male:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(17,16);
+			SetSize(45,43);
+			SetPressedImage("art/intrface/male_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			__RegParams[(71)]=(0);
+			GenParams();
+			SetSwitch(true);
+			Parent.FindButton("Female").SetSwitch(false);
+		}
+		
+		void OnActiveChanged()override
+		{
+			if(Active)
+			SetSwitch(__RegParams[(71)]==(0));
+		}
+	}
+	
+	class Female:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(76,16);
+			SetSize(45,42);
+			SetPressedImage("art/intrface/female_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			__RegParams[(71)]=(1);
+			GenParams();
+			SetSwitch(true);
+			Parent.FindButton("Male").SetSwitch(false);
+		}
+		
+		void OnActiveChanged()override
+		{
+			if(Active)
+			SetSwitch(__RegParams[(71)]==(1));
+		}
+	}
+	
+	class MessageBox:GUIMessageBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(30,0);
+			SetSize(700,50);
+			SetAnchor((0x1)|(0x4));
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Character _Character();
+		_Character.Init(null);
+		Main _Main();
+		_Main.Init(_Character);
+		BaseStats _BaseStats();
+		_BaseStats.Init(_Main);
+		BaseStat _BaseStat();
+		_BaseStat.Init(_BaseStats);
+		StatName _StatName();
+		_StatName.Init(_BaseStat);
+		StatValue _StatValue();
+		_StatValue.Init(_BaseStat);
+		StatValueDesc _StatValueDesc();
+		_StatValueDesc.Init(_BaseStat);
+		StatInc _StatInc();
+		_StatInc.Init(_BaseStat);
+		StatDec _StatDec();
+		_StatDec.Init(_BaseStat);
+		BaseStatPoints _BaseStatPoints();
+		_BaseStatPoints.Init(_Main);
+		Title1 _Title1();
+		_Title1.Init(_BaseStatPoints);
+		StatPointsValue _StatPointsValue();
+		_StatPointsValue.Init(_BaseStatPoints);
+		HealthStats _HealthStats();
+		_HealthStats.Init(_Main);
+		HealthStat _HealthStat();
+		_HealthStat.Init(_HealthStats);
+		StatDesc _StatDesc();
+		_StatDesc.Init(_HealthStat);
+		ExtendedStats _ExtendedStats();
+		_ExtendedStats.Init(_Main);
+		ExtendedStat _ExtendedStat();
+		_ExtendedStat.Init(_ExtendedStats);
+		StatName2 _StatName2();
+		_StatName2.Init(_ExtendedStat);
+		StatValue2 _StatValue2();
+		_StatValue2.Init(_ExtendedStat);
+		Traits _Traits();
+		_Traits.Init(_Main);
+		TraitsLeft _TraitsLeft();
+		_TraitsLeft.Init(_Traits);
+		TraitLeft _TraitLeft();
+		_TraitLeft.Init(_TraitsLeft);
+		Switcher1 _Switcher1();
+		_Switcher1.Init(_TraitLeft);
+		TraitName1 _TraitName1();
+		_TraitName1.Init(_TraitLeft);
+		TraitsRight _TraitsRight();
+		_TraitsRight.Init(_Traits);
+		TraitRight _TraitRight();
+		_TraitRight.Init(_TraitsRight);
+		Switcher2 _Switcher2();
+		_Switcher2.Init(_TraitRight);
+		TraitName2 _TraitName2();
+		_TraitName2.Init(_TraitRight);
+		Skills _Skills();
+		_Skills.Init(_Main);
+		Skill _Skill();
+		_Skill.Init(_Skills);
+		TagSkill _TagSkill();
+		_TagSkill.Init(_Skill);
+		SkillName _SkillName();
+		_SkillName.Init(_Skill);
+		SkillValue _SkillValue();
+		_SkillValue.Init(_Skill);
+		Title3 _Title3();
+		_Title3.Init(_Skills);
+		UnspentSkillPoints _UnspentSkillPoints();
+		_UnspentSkillPoints.Init(_Main);
+		Title2 _Title2();
+		_Title2.Init(_UnspentSkillPoints);
+		UnspentValue _UnspentValue();
+		_UnspentValue.Init(_UnspentSkillPoints);
+		Tip _Tip();
+		_Tip.Init(_Main);
+		Image _Image();
+		_Image.Init(_Tip);
+		Name _Name();
+		_Name.Init(_Tip);
+		Desc _Desc();
+		_Desc.Init(_Tip);
+		Buttons _Buttons();
+		_Buttons.Init(_Main);
+		Print _Print();
+		_Print.Init(_Buttons);
+		Button1 _Button1();
+		_Button1.Init(_Print);
+		Text7 _Text7();
+		_Text7.Init(_Print);
+		Done _Done();
+		_Done.Init(_Buttons);
+		Button2 _Button2();
+		_Button2.Init(_Done);
+		Text8 _Text8();
+		_Text8.Init(_Done);
+		Back _Back();
+		_Back.Init(_Buttons);
+		Button3 _Button3();
+		_Button3.Init(_Back);
+		Text9 _Text9();
+		_Text9.Init(_Back);
+		CharacterName _CharacterName();
+		_CharacterName.Init(_Main);
+		Button4 _Button4();
+		_Button4.Init(_CharacterName);
+		CharacterText _CharacterText();
+		_CharacterText.Init(_CharacterName);
+		CharacterAge _CharacterAge();
+		_CharacterAge.Init(_Main);
+		Button5 _Button5();
+		_Button5.Init(_CharacterAge);
+		AgeText _AgeText();
+		_AgeText.Init(_CharacterAge);
+		CharacterGender _CharacterGender();
+		_CharacterGender.Init(_Main);
+		Button6 _Button6();
+		_Button6.Init(_CharacterGender);
+		GenderText _GenderText();
+		_GenderText.Init(_CharacterGender);
+		CharacterNamePopUp _CharacterNamePopUp();
+		_CharacterNamePopUp.Init(_Main);
+		ChaName _ChaName();
+		_ChaName.Init(_CharacterNamePopUp);
+		ChaPassword _ChaPassword();
+		_ChaPassword.Init(_CharacterNamePopUp);
+		CharacterAgePopUp _CharacterAgePopUp();
+		_CharacterAgePopUp.Init(_Main);
+		IncAge _IncAge();
+		_IncAge.Init(_CharacterAgePopUp);
+		DecAge _DecAge();
+		_DecAge.Init(_CharacterAgePopUp);
+		AgeValue _AgeValue();
+		_AgeValue.Init(_CharacterAgePopUp);
+		CharacterGenderPopUp _CharacterGenderPopUp();
+		_CharacterGenderPopUp.Init(_Main);
+		Male _Male();
+		_Male.Init(_CharacterGenderPopUp);
+		Female _Female();
+		_Female.Init(_CharacterGenderPopUp);
+		MessageBox _MessageBox();
+		_MessageBox.Init(_Character);
+		GUI_RegisterScreen(screenIndex,_Character);
+	}
+}
+
+namespace Options
+{
+	void SaveOptions()
+	{
+		string[]savedOptions=
+		{
+			"Language",""+CustomCall("GetLanguage"),
+			"ScreenWidth",""+__ScreenWidth,
+			"ScreenHeight",""+__ScreenHeight,
+			"FullScreen",""+__FullScr,
+			"AlwaysOnTop",""+__AlwaysOnTop,
+			"MusicVolume",""+__MusicVolume,
+			"SoundVolume",""+__SoundVolume,
+			"AlwaysRun",""+__AlwaysRun,
+			"DefaultCombatMode",""+__DefaultCombatMode,
+			"RemoteHost",""+__Host,
+			"RemotePort",""+__Port,
+			"ProxyType",""+__ProxyType,
+			"ProxyHost",""+__ProxyHost,
+			"ProxyPort",""+__ProxyPort,
+			"ProxyUser",""+__ProxyUser,
+			"ProxyPass",""+__ProxyPass
+		};
+		SetUserConfig(savedOptions);
+	}
+	
+	class Screen:GUIScreen
+	{
+		void OnConstruct()override
+		{
+			SetModal(true);
+			SetCanMove(true,false);
+			SetSize(800,600);
+			SetDock((5));
+		}
+	}
+	
+	class Main:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(80,60);
+			SetSize(640,480);
+			SetBackgroundImage("art/intrface/main_menu_options.png");
+		}
+	}
+	
+	class Options:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(640,440);
+		}
+	}
+	
+	class Game:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(0,20);
+		}
+	}
+	
+	class Language:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,10);
+			SetText(GetMsgStr((3),(200)));
+		}
+	}
+	
+	class Russian:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(CustomCall("GetLanguage")=="russ");
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetLanguage russ");
+			GUI_Callback_OnLanguageChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text1:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(201)));
+		}
+	}
+	
+	class English:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(330,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(CustomCall("GetLanguage")=="engl");
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetLanguage engl");
+			GUI_Callback_OnLanguageChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text2:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(202)));
+		}
+	}
+	
+	int[]ScreenWidthOpt={800,1024,1280,1280,1366,1920};
+	int[]ScreenHeightOpt={600,768,800,1024,768,1080};
+	
+	class Resolution:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,40);
+			SetText(GetMsgStr((3),(210)));
+		}
+	}
+	
+	class Resolution1:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,-8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[0]&&__ScreenHeight==ScreenHeightOpt[0]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[0]+" "+ScreenHeightOpt[0]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text14:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[0]+"x"+ScreenHeightOpt[0]);
+		}
+	}
+	
+	class Resolution2:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(240,8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[1]&&__ScreenHeight==ScreenHeightOpt[1]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[1]+" "+ScreenHeightOpt[1]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text15:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[1]+"x"+ScreenHeightOpt[1]);
+		}
+	}
+	
+	class Resolution3:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(300,-8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[2]&&__ScreenHeight==ScreenHeightOpt[2]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[2]+" "+ScreenHeightOpt[2]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text16:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[2]+"x"+ScreenHeightOpt[2]);
+		}
+	}
+	
+	class Resolution4:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(360,8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[3]&&__ScreenHeight==ScreenHeightOpt[3]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[3]+" "+ScreenHeightOpt[3]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text17:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[3]+"x"+ScreenHeightOpt[3]);
+		}
+	}
+	
+	class Resolution5:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(420,-8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[4]&&__ScreenHeight==ScreenHeightOpt[4]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[4]+" "+ScreenHeightOpt[4]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text18:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[4]+"x"+ScreenHeightOpt[4]);
+		}
+	}
+	
+	class Resolution6:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(480,8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ScreenWidth==ScreenWidthOpt[5]&&__ScreenHeight==ScreenHeightOpt[5]);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SetResolution "+ScreenWidthOpt[5]+" "+ScreenHeightOpt[5]);
+			GUI_Callback_OnResolutionChanged();
+			SaveOptions();
+		}
+	}
+	
+	class Text19:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(ScreenWidthOpt[5]+"x"+ScreenHeightOpt[5]);
+		}
+	}
+	
+	class FullScreen:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,70);
+			SetText(GetMsgStr((3),(211)));
+		}
+	}
+	
+	class CheckBox1:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__FullScr);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("SwitchFullscreen");
+			SaveOptions();
+		}
+	}
+	
+	class AlwaysOnTop:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,100);
+			SetText(GetMsgStr((3),(212)));
+		}
+	}
+	
+	class CheckBox2:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__AlwaysOnTop);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__AlwaysOnTop=IsChecked;
+			SaveOptions();
+		}
+	}
+	
+	class Music:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,130);
+			SetText(GetMsgStr((3),(213)));
+		}
+	}
+	
+	class MusicDec:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			if(__MusicVolume>0)
+			{
+				__MusicVolume--;
+				SaveOptions();
+			}
+		}
+	}
+	
+	class MusicInc:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(280,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			if(__MusicVolume<100)
+			{
+				__MusicVolume++;
+				SaveOptions();
+			}
+		}
+	}
+	
+	class MusicValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(235,0);
+		}
+		
+		string@get_Text()override
+		{
+			return""+__MusicVolume;
+		}
+	}
+	
+	class Sound:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,160);
+			SetText(GetMsgStr((3),(214)));
+		}
+	}
+	
+	class SoundDec:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			if(__SoundVolume>0)
+			{
+				__SoundVolume--;
+				SaveOptions();
+			}
+		}
+	}
+	
+	class SoundInc:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(280,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+		}
+		
+		void OnLMousePressed()override
+		{
+			if(__SoundVolume<100)
+			{
+				__SoundVolume++;
+				SaveOptions();
+			}
+		}
+	}
+	
+	class SoundValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(235,0);
+		}
+		
+		string@get_Text()override
+		{
+			return""+__SoundVolume;
+		}
+	}
+	
+	class AlwaysRun:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,190);
+			SetText(GetMsgStr((3),(215)));
+		}
+	}
+	
+	class CheckBox3:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__AlwaysRun);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__AlwaysRun=IsChecked;
+			SaveOptions();
+		}
+	}
+	
+	class CombatMode:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,220);
+			SetText(GetMsgStr((3),(216)));
+		}
+	}
+	
+	class Both:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,-8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__DefaultCombatMode==(0));
+		}
+		
+		void OnLMouseClick()override
+		{
+			__DefaultCombatMode=(0);
+			SaveOptions();
+		}
+	}
+	
+	class Text5:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(217)));
+		}
+	}
+	
+	class RealTime:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(280,8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__DefaultCombatMode==(1));
+		}
+		
+		void OnLMouseClick()override
+		{
+			__DefaultCombatMode=(1);
+			SaveOptions();
+		}
+	}
+	
+	class Text6:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(218)));
+		}
+	}
+	
+	class TurnBased:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(380,-8);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__DefaultCombatMode==(2));
+		}
+		
+		void OnLMouseClick()override
+		{
+			__DefaultCombatMode=(2);
+			SaveOptions();
+		}
+	}
+	
+	class Text7:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(219)));
+		}
+	}
+	
+	class CombatMessages:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,250);
+			SetText(GetMsgStr((3),(220)));
+		}
+	}
+	
+	class Verbose:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__CombatMessagesType==0);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__CombatMessagesType=0;
+			SaveOptions();
+		}
+	}
+	
+	class Text8:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(221)));
+		}
+	}
+	
+	class Brief:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(330,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__CombatMessagesType!=0);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__CombatMessagesType=1;
+			SaveOptions();
+		}
+	}
+	
+	class Text9:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(222)));
+		}
+	}
+	
+	class GameServer:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,280);
+			SetText(GetMsgStr((3),(223)));
+		}
+	}
+	
+	class Panel1:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,-2);
+			SetSize(250,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class Panel2:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(450,-2);
+			SetSize(50,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class Host:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(250,12);
+			SetText(__Host);
+			SetTextFlags((0x0004));
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__Host=Text;
+			SaveOptions();
+		}
+	}
+	
+	class Port:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(450,0);
+			SetSize(50,12);
+			SetText(""+__Port);
+			SetTextFlags((0x0004));
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__Port=Text.toInt(__Port);
+			Text=""+__Port;
+			SaveOptions();
+		}
+	}
+	
+	class ProxyType:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,310);
+			SetText(GetMsgStr((3),(224)));
+		}
+	}
+	
+	class ProxyNone:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ProxyType==0);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__ProxyType=0;
+			SaveOptions();
+		}
+	}
+	
+	class Text10:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(225)));
+		}
+	}
+	
+	class ProxySocks4:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(280,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ProxyType==1);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__ProxyType=1;
+			SaveOptions();
+		}
+	}
+	
+	class Text11:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(226)));
+		}
+	}
+	
+	class ProxySocks5:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(380,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ProxyType==2);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__ProxyType=2;
+			SaveOptions();
+		}
+	}
+	
+	class Text12:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(227)));
+		}
+	}
+	
+	class ProxyHttp:GUIRadioButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(480,0);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+			SetChecked(__ProxyType==3);
+		}
+		
+		void OnLMouseClick()override
+		{
+			__ProxyType=3;
+			SaveOptions();
+		}
+	}
+	
+	class Text13:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(228)));
+		}
+	}
+	
+	class ProxyServer:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,340);
+			SetText(GetMsgStr((3),(229)));
+		}
+	}
+	
+	class Panel3:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,-2);
+			SetSize(250,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class Panel4:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(450,-2);
+			SetSize(50,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class ProxyHost:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(250,12);
+			SetText(__ProxyHost);
+			SetTextFlags((0x0004));
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__Host=Text;
+			SaveOptions();
+		}
+	}
+	
+	class ProxyPort:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(450,0);
+			SetSize(50,12);
+			SetText(""+__ProxyPort);
+			SetTextFlags((0x0004));
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__ProxyPort=Text.toInt(__ProxyPort);
+			Text=""+__ProxyPort;
+			SaveOptions();
+		}
+	}
+	
+	class ProxyAccess:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(50,370);
+			SetText(GetMsgStr((3),(230)));
+		}
+	}
+	
+	class Panel5:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,-2);
+			SetSize(150,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class Panel6:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(350,-2);
+			SetSize(150,12);
+			SetBackgroundImage("art/intrface/black_pixel.png",(3));
+		}
+	}
+	
+	class ProxyLogin:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(180,0);
+			SetSize(150,12);
+			SetText(__ProxyUser);
+			SetTextFlags((0x0004));
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__ProxyUser=Text;
+			SaveOptions();
+		}
+	}
+	
+	class ProxyPassword:GUITextInput
+	{
+		void OnConstruct()override
+		{
+			SetPosition(350,0);
+			SetSize(150,12);
+			SetText(__ProxyPass);
+			SetTextFlags((0x0004));
+			SetInputPassword("#");
+		}
+		
+		void OnInput(uint8 key,string@text)override
+		{
+			__ProxyPass=Text;
+			SaveOptions();
+		}
+	}
+	
+	class Back:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(460,450);
+			SetSize(17,11);
+			SetBackgroundImage("art/intrface/opt_button_up.png");
+			SetPressedImage("art/intrface/opt_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((1));
+		}
+	}
+	
+	class Text3:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(25,0);
+			SetText(GetMsgStr((3),(249)));
+			SetTextFont((7));
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Screen _Screen();
+		_Screen.Init(null);
+		Main _Main();
+		_Main.Init(_Screen);
+		Options _Options();
+		_Options.Init(_Main);
+		Game _Game();
+		_Game.Init(_Options);
+		Language _Language();
+		_Language.Init(_Game);
+		Russian _Russian();
+		_Russian.Init(_Language);
+		Text1 _Text1();
+		_Text1.Init(_Russian);
+		English _English();
+		_English.Init(_Language);
+		Text2 _Text2();
+		_Text2.Init(_English);
+		Resolution _Resolution();
+		_Resolution.Init(_Game);
+		Resolution1 _Resolution1();
+		_Resolution1.Init(_Resolution);
+		Text14 _Text14();
+		_Text14.Init(_Resolution1);
+		Resolution2 _Resolution2();
+		_Resolution2.Init(_Resolution);
+		Text15 _Text15();
+		_Text15.Init(_Resolution2);
+		Resolution3 _Resolution3();
+		_Resolution3.Init(_Resolution);
+		Text16 _Text16();
+		_Text16.Init(_Resolution3);
+		Resolution4 _Resolution4();
+		_Resolution4.Init(_Resolution);
+		Text17 _Text17();
+		_Text17.Init(_Resolution4);
+		Resolution5 _Resolution5();
+		_Resolution5.Init(_Resolution);
+		Text18 _Text18();
+		_Text18.Init(_Resolution5);
+		Resolution6 _Resolution6();
+		_Resolution6.Init(_Resolution);
+		Text19 _Text19();
+		_Text19.Init(_Resolution6);
+		FullScreen _FullScreen();
+		_FullScreen.Init(_Game);
+		CheckBox1 _CheckBox1();
+		_CheckBox1.Init(_FullScreen);
+		AlwaysOnTop _AlwaysOnTop();
+		_AlwaysOnTop.Init(_Game);
+		CheckBox2 _CheckBox2();
+		_CheckBox2.Init(_AlwaysOnTop);
+		Music _Music();
+		_Music.Init(_Game);
+		MusicDec _MusicDec();
+		_MusicDec.Init(_Music);
+		MusicInc _MusicInc();
+		_MusicInc.Init(_Music);
+		MusicValue _MusicValue();
+		_MusicValue.Init(_Music);
+		Sound _Sound();
+		_Sound.Init(_Game);
+		SoundDec _SoundDec();
+		_SoundDec.Init(_Sound);
+		SoundInc _SoundInc();
+		_SoundInc.Init(_Sound);
+		SoundValue _SoundValue();
+		_SoundValue.Init(_Sound);
+		AlwaysRun _AlwaysRun();
+		_AlwaysRun.Init(_Game);
+		CheckBox3 _CheckBox3();
+		_CheckBox3.Init(_AlwaysRun);
+		CombatMode _CombatMode();
+		_CombatMode.Init(_Game);
+		Both _Both();
+		_Both.Init(_CombatMode);
+		Text5 _Text5();
+		_Text5.Init(_Both);
+		RealTime _RealTime();
+		_RealTime.Init(_CombatMode);
+		Text6 _Text6();
+		_Text6.Init(_RealTime);
+		TurnBased _TurnBased();
+		_TurnBased.Init(_CombatMode);
+		Text7 _Text7();
+		_Text7.Init(_TurnBased);
+		CombatMessages _CombatMessages();
+		_CombatMessages.Init(_Game);
+		Verbose _Verbose();
+		_Verbose.Init(_CombatMessages);
+		Text8 _Text8();
+		_Text8.Init(_Verbose);
+		Brief _Brief();
+		_Brief.Init(_CombatMessages);
+		Text9 _Text9();
+		_Text9.Init(_Brief);
+		GameServer _GameServer();
+		_GameServer.Init(_Game);
+		Panel1 _Panel1();
+		_Panel1.Init(_GameServer);
+		Panel2 _Panel2();
+		_Panel2.Init(_GameServer);
+		Host _Host();
+		_Host.Init(_GameServer);
+		Port _Port();
+		_Port.Init(_GameServer);
+		ProxyType _ProxyType();
+		_ProxyType.Init(_Game);
+		ProxyNone _ProxyNone();
+		_ProxyNone.Init(_ProxyType);
+		Text10 _Text10();
+		_Text10.Init(_ProxyNone);
+		ProxySocks4 _ProxySocks4();
+		_ProxySocks4.Init(_ProxyType);
+		Text11 _Text11();
+		_Text11.Init(_ProxySocks4);
+		ProxySocks5 _ProxySocks5();
+		_ProxySocks5.Init(_ProxyType);
+		Text12 _Text12();
+		_Text12.Init(_ProxySocks5);
+		ProxyHttp _ProxyHttp();
+		_ProxyHttp.Init(_ProxyType);
+		Text13 _Text13();
+		_Text13.Init(_ProxyHttp);
+		ProxyServer _ProxyServer();
+		_ProxyServer.Init(_Game);
+		Panel3 _Panel3();
+		_Panel3.Init(_ProxyServer);
+		Panel4 _Panel4();
+		_Panel4.Init(_ProxyServer);
+		ProxyHost _ProxyHost();
+		_ProxyHost.Init(_ProxyServer);
+		ProxyPort _ProxyPort();
+		_ProxyPort.Init(_ProxyServer);
+		ProxyAccess _ProxyAccess();
+		_ProxyAccess.Init(_Game);
+		Panel5 _Panel5();
+		_Panel5.Init(_ProxyAccess);
+		Panel6 _Panel6();
+		_Panel6.Init(_ProxyAccess);
+		ProxyLogin _ProxyLogin();
+		_ProxyLogin.Init(_ProxyAccess);
+		ProxyPassword _ProxyPassword();
+		_ProxyPassword.Init(_ProxyAccess);
+		Back _Back();
+		_Back.Init(_Main);
+		Text3 _Text3();
+		_Text3.Init(_Back);
+		GUI_RegisterScreen(screenIndex,_Screen);
+	}
+}
+
+namespace Game
+{
+	string@FormatXXX(int value)
+	{
+		string@result="";
+		int offs=0;
+		if(value>=0)
+		{
+			result+=EncodeUTF8('9'+4);
+		}
+		else
+		{
+			offs=0x20;
+			result+=EncodeUTF8('9'+offs+3);
+			value=-value;
+		}
+		
+		value=(((value)>(999))?(999):(((value)<(0))?(0):(value)));
+		
+		result+=EncodeUTF8('0'+offs+value/100);
+		result+=EncodeUTF8('0'+offs+value/10%10);
+		result+=EncodeUTF8('0'+offs+value%10);
+		
+		return result;
+	}
+	
+	class Screen:GUIScreen
+	{
+		bool isHitIfaceOnMouseDown;
+		
+		void OnConstruct()override
+		{
+			SetModal(true);
+			SetCanMove(true,false);
+			SetPosition(82,41);
+			SetSize(800,600);
+			SetDock((5));
+			SetNotHittable(true);
+		}
+		
+		void OnGlobalMouseDown(int button)override
+		{
+			if(__MapZooming&&__SpritesZoomMin!=__SpritesZoomMax)
+			{
+				if(button==(3))
+				ChangeZoom(__SpritesZoom-0.01);
+				else if(button==(4))
+				ChangeZoom(__SpritesZoom+0.01);
+				else if(button==(2))
+				ChangeZoom(1.0);
+			}
+			
+			if(GetChild(0).FindMouseHit()is null)
+			{
+				if(button==(0))
+				CustomCall("GameLMouseDown");
+				else if(button==(1))
+				isHitIfaceOnMouseDown=(FindMouseHit()!is null);
+			}
+		}
+		
+		void OnGlobalMouseUp(int button)override
+		{
+			if(GetChild(0).FindMouseHit()is null)
+			{
+				if(button==(0))
+				CustomCall("GameLMouseUp");
+				else if(button==(1)&&!isHitIfaceOnMouseDown)
+				NextCursor();
+			}
+		}
+		
+		void OnGlobalMouseMove()override
+		{
+			CustomCall("ProcessMouseScroll");
+		}
+	}
+	
+	class Main:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(0,475);
+			SetSize(800,125);
+			SetAnchor((0x1)|(0x2)|(0x8));
+			SetCheckTransparentOnHit(true);
+			SetBackgroundImage("art/intrface/iface.png");
+		}
+	}
+	
+	class Console:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(0,-37);
+		}
+	}
+	
+	class ConsoleImage:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(800,35);
+			SetBackgroundImage("art/intrface/panel.png");
+		}
+	}
+	
+	class ConsoleText:GUIConsole
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(13,14);
+			SetNotHittable(true);
+		}
+		
+		void OnActiveChanged()override
+		{
+			Parent.Find("ConsoleImage").SetActive(ActiveSelf);
+		}
+	}
+	
+	class MessageBoxExtended:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(0,-55);
+			SetSize(372,112);
+			SetBackgroundImage("art/intrface/iface_add_mess.png");
+		}
+	}
+	
+	class MessageBoxText:GUIMessageBox
+	{
+		void FiltersChanged()
+		{
+			int[]messageTypes;
+			if(cast<GUICheckBox>(Parent.Find("Filter1")).IsChecked)
+			messageTypes.insertLast((1));
+			if(cast<GUICheckBox>(Parent.Find("Filter2")).IsChecked)
+			messageTypes.insertLast((2));
+			
+			if(messageTypes.length()==0)
+			messageTypes.insertLast((10));
+			
+			SetDisplayedMessages(messageTypes);
+		}
+		
+		void OnConstruct()override
+		{
+			SetPosition(34,28);
+			SetSize(306,76);
+			SetAnchor((0x4));
+		}
+	}
+	
+	class ExtendMessageBox:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(355,60);
+			SetSize(11,6);
+			SetPressedImage("art/intrface/iface_small_btn.png");
+		}
+		
+		void OnCheckedChanged()override
+		{
+			GUIObject@messageBoxText=Parent.Find("MessageBoxText");
+			GUIObject@messageBoxExtended=Parent.Find("MessageBoxExtended");
+			GUIObject@console=Parent.Find("Console");
+			
+			messageBoxText.SetSize(messageBoxText.Width,IsChecked?131:76);
+			messageBoxText.SetPosition(messageBoxText.PosX,IsChecked?-27:28);
+			messageBoxExtended.SetActive(IsChecked);
+			console.SetPosition(0,IsChecked?-92:-37);
+		}
+	}
+	
+	class Filter1:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(355,68);
+			SetSize(11,6);
+			SetPressedImage("art/intrface/iface_small_btn.png");
+		}
+		
+		void OnCheckedChanged()override
+		{
+			cast<MessageBoxText>(Parent.Find("MessageBoxText")).FiltersChanged();
+		}
+	}
+	
+	class Filter2:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetPosition(355,75);
+			SetSize(11,6);
+			SetPressedImage("art/intrface/iface_small_btn.png");
+		}
+		
+		void OnCheckedChanged()override
+		{
+			cast<MessageBoxText>(Parent.Find("MessageBoxText")).FiltersChanged();
+		}
+	}
+	
+	class GameMenu:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(370,87);
+			SetSize(34,34);
+			SetPressedImage("art/intrface/game_menu_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((18));
+		}
+	}
+	
+	class Inventory:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(371,65);
+			SetSize(32,21);
+			SetPressedImage("art/intrface/inv_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((10));
+		}
+	}
+	
+	class SwitchItems:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(378,32);
+			SetSize(22,21);
+			SetPressedImage("art/intrface/big_red_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("ChangeSlot");
+		}
+	}
+	
+	class Skills:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(636,32);
+			SetSize(22,21);
+			SetPressedImage("art/intrface/big_red_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((30));
+		}
+	}
+	
+	class Map:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(686,46);
+			SetSize(41,19);
+			SetPressedImage("art/intrface/map_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((12));
+		}
+	}
+	
+	class Character:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(686,65);
+			SetSize(41,19);
+			SetPressedImage("art/intrface/cha_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((13));
+			CritterCl@chosen=GetChosen();
+			if(chosen!is null&&chosen.ParamBase[(79)]>0)
+			ShowScreen((32));
+		}
+	}
+	
+	class PipBoy:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(686,84);
+			SetSize(41,19);
+			SetPressedImage("art/intrface/pip_boy_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((16));
+		}
+	}
+	
+	class FixBoy:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(686,103);
+			SetSize(41,19);
+			SetPressedImage("art/intrface/iface_fix.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			ShowScreen((17));
+		}
+	}
+	
+	class Combat:GUIPanel
+	{
+		bool CombatActive;
+		
+		void OnConstruct()override
+		{
+			SetPosition(740,64);
+			SetBackgroundImage("art/intrface/combat.fofrm");
+		}
+		
+		void OnInit()override
+		{
+			BackgroundImage.SetFirstFrame();
+		}
+		
+		void OnDraw()override
+		{
+			CritterCl@chosen=GetChosen();
+			bool combatActive=(chosen!is null&&chosen.Param[(238)]!=0);
+			if(combatActive!=CombatActive)
+			{
+				CombatActive=combatActive;
+				BackgroundImage.PlayAnimation(false,!combatActive);
+				PlaySound("ICIBOXX1");
+			}
+			
+			GetChild(0).SetActive(CombatActive&&CustomCall("IsTurnBasedMyTurn")=="true");
+			GetChild(1).SetActive(CombatActive&&IsTurnBased());
+		}
+	}
+	
+	class EndTurn:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(10,5);
+			SetSize(38,22);
+			SetPressedImage("art/intrface/end_turn_button_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("EndTurn");
+		}
+	}
+	
+	class EndCombat:GUICheckBox
+	{
+		void OnConstruct()override
+		{
+			SetActive(false);
+			SetPosition(10,27);
+			SetSize(38,22);
+			SetPressedImage("art/intrface/end_combat_button_dn.png");
+		}
+		
+		void OnDraw()override
+		{
+			CritterCl@chosen=GetChosen();
+			SetChecked(IsTurnBased()&&chosen!is null&&chosen.ParamBase[(515)]!=0);
+		}
+		
+		void OnLMouseClick()override
+		{
+			CustomCall("EndCombat");
+		}
+	}
+	
+	class ActionPoints:GUIGrid
+	{
+		void OnConstruct()override
+		{
+			SetPosition(475,40);
+			SetCellPrototype("Led");
+			SetGridSize(10);
+			SetColumns(10);
+			SetPadding(9,0);
+		}
+		
+		void OnDraw()override
+		{
+			CritterCl@chosen=GetChosen();
+			int ap=(chosen!is null?chosen.Param[(75)]:0);
+			uint moveAp=(IsTurnBased()&&chosen!is null?chosen.Param[(88)]:0);
+			for(uint i=0;i<Cells.length();i++)
+			{
+				uint absAp=uint((((ap)>0)?(ap):-(ap)));
+				bool active=(i<absAp+moveAp);
+				Cells[i].SetActive(active);
+				if(active)
+				{
+					Cells[i].GetChild(0).SetActive(ap>=0&&i<absAp);
+					Cells[i].GetChild(1).SetActive(ap<0&&i<absAp);
+					Cells[i].GetChild(2).SetActive(i>=absAp);
+				}
+			}
+		}
+	}
+	
+	class Led:GUIPanel
+	{
+		void OnConstruct()override
+		{
+		}
+	}
+	
+	class LedGreen:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(5,5);
+			SetBackgroundImage("art/intrface/led_green.png");
+		}
+	}
+	
+	class LedRed:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(5,5);
+			SetBackgroundImage("art/intrface/led_red.png");
+		}
+	}
+	
+	class LedYellow:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(5,5);
+			SetBackgroundImage("art/intrface/led_yellow.png");
+		}
+	}
+	
+	class BreakTime:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(571,40);
+		}
+		
+		void OnDraw()override
+		{
+			CritterCl@chosen=GetChosen();
+			GetChild(0).SetActive(chosen!is null&&chosen.IsBusy());
+		}
+	}
+	
+	class BreakTimeLed:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(5,5);
+			SetBackgroundImage("art/intrface/led_red.png");
+		}
+	}
+	
+	class HitPoints:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(633,71);
+			SetTextFont((1));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			int result=0;
+			CritterCl@chosen=GetChosen();
+			if(chosen!is null)
+			result=chosen.Param[(72)];
+			return FormatXXX(result);
+		}
+	}
+	
+	class ArmorClass:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(633,102);
+			SetTextFont((1));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+		
+		string@get_Text()override
+		{
+			int result=0;
+			CritterCl@chosen=GetChosen();
+			if(chosen!is null)
+			result=chosen.Param[(9)];
+			return FormatXXX(result);
+		}
+	}
+	
+	class MainItemPlate:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(426,52);
+			SetSize(188,67);
+			SetPressedImage("art/intrface/iface_item.png");
+		}
+		
+		void OnMouseDown(int button)override
+		{
+			if(button==(0)||button==(1))
+			GetChild(0).SetPosition(0,-2);
+		}
+		
+		void OnMouseUp(int button,bool lost)override
+		{
+			GetChild(0).SetPosition(0,0);
+		}
+		
+		void OnMouseClick(int button)override
+		{
+			if(button==(0))
+			CustomCall("UseMainItem");
+			else if(button==(1))
+			CustomCall("NextItemMode");
+			else if(button==(3))
+			CustomCall("NextItemMode Prev");
+			else if(button==(4))
+			CustomCall("NextItemMode");
+		}
+	}
+	
+	class MainItemSlot:GUIItemView
+	{
+		void OnConstruct()override
+		{
+			SetNotHittable(true);
+			SetCellPrototype("MainItemSlotCell");
+			SetGridSize(1);
+		}
+		
+		int OnCheckItem(ItemCl@item)override
+		{
+			return item.CritSlot==(1)?0:-1;
+		}
+	}
+	
+	class MainItemSlotCell:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(188,67);
+			SetNotHittable(true);
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			uint picInv=0;
+			if(item!is null)
+			picInv=(item.PicInv!=0?item.PicInv:item.Proto.PicInv);
+			SetBackgroundImage(picInv,(4));
+		}
+	}
+	
+	class AmmoCount:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(7,14);
+			SetNotHittable(true);
+			SetTextFont((4));
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			SetText(item!is null&&item.GetType()==(3)?""+item.AmmoCount:"");
+		}
+	}
+	
+	class DeteriorationValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(7,24);
+			SetNotHittable(true);
+			SetTextFont((4));
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			SetText(item!is null&&item.IsDeteriorable()?item.Deterioration+"%":"");
+		}
+	}
+	
+	class UsePic:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(163,8);
+			SetSize(17,12);
+			SetAnchor((0x2)|(0x4));
+			SetNotHittable(true);
+			SetBackgroundImage("art/intrface/ap_pic.png");
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			uint usePic=0;
+			
+			CritterCl@chosen=GetChosen();
+			uint8 mode;
+			const ProtoItem@proto;
+			uint flags;
+			if(item!is null)
+			{
+				mode=item.Mode;
+				@proto=item.Proto;
+				flags=item.Flags;
+			}
+			else if(chosen!is null)
+			{
+				@proto=chosen.GetSlotProto((1),mode);
+				flags=proto.Flags;
+			}
+			
+			if(item!is null||chosen!is null)
+			{
+				int use=((mode)&0xF);
+				if(proto.Type==(3))
+				{
+					if(use==(3))
+					usePic=GetStrHash("art\\intrface\\reload.frm");
+					else if(use==(4))
+					usePic=GetStrHash("art\\intrface\\useon.frm");
+					else if(use<(3))
+					usePic=((use)==0?proto.Weapon_PicUse_0:((use)==1?proto.Weapon_PicUse_1:((use)==2?proto.Weapon_PicUse_2:0)));
+				}
+				if(usePic==0&&(((item.Flags)&((0x01000000)))!=0))
+				usePic=GetStrHash("art\\intrface\\useon.frm");
+				if(usePic==0&&(((item.Flags)&((0x10000000)))!=0))
+				usePic=GetStrHash("art\\intrface\\uset.frm");
+			}
+			
+			BackgroundImage.Load(usePic);
+			SetPosition(180-BackgroundImage.Width,PosY);
+		}
+	}
+	
+	import uint GetItemUseApCost(CritterCl&cr,ItemCl&item,uint8 mode)from"parameters";
+	import uint GetProtoItemUseApCost(CritterCl&cr,ProtoItem&proto,uint8 mode)from"parameters";
+	
+	class ApCost:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(10,44);
+			SetNotHittable(true);
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			uint apCost=0;
+			if(item!is null&&item.Accessory==(1))
+			{
+				apCost=GetItemUseApCost(GetCritter(item.CritId),item,item.Mode);
+			}
+			else if(item is null)
+			{
+				CritterCl@chosen=GetChosen();
+				if(chosen!is null)
+				{
+					uint8 mode=0;
+					ProtoItem@proto=chosen.GetSlotProto((1),mode);
+					apCost=GetProtoItemUseApCost(chosen,proto,mode);
+				}
+			}
+			
+			SetActive(apCost>0);
+			if(apCost>0)
+			FindText("ApCostValue").SetText(""+apCost);
+		}
+	}
+	
+	class ApCostImage:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(17,12);
+			SetBackgroundImage("art/intrface/ap_pic.png");
+		}
+	}
+	
+	class ApCostValue:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(20,0);
+			SetTextFont((3));
+			SetTextColor(((uint((0xFF<<24)|(((123)&0xFF)<<16)|(((115)&0xFF)<<8)|((106)&0xFF)))));
+		}
+	}
+	
+	class AimPic:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(162,41);
+			SetSize(18,18);
+			SetNotHittable(true);
+			SetBackgroundImage("art/intrface/aim_pic.png");
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			CritterCl@chosen=GetChosen();
+			uint8 mode=0;
+			if(item!is null)
+			mode=item.Mode;
+			else if(chosen!is null)
+			chosen.GetSlotProto((1),mode);
+			
+			BackgroundImage.Hidden=((((mode)>>4)&0xF)==(0));
+		}
+	}
+	
+	class Indicators:GUIPanel
+	{    
+		
+		void DrawIndicator(int[]rect,int[]&points,uint color,int cur,int max,uint&tick,bool isVertical,bool fromTopOrLeft)
+		{
+			int percent=0;
+			if(max!=0)
+			{
+				percent=cur*100/max;
+				percent=(((percent)>(100))?(100):(((percent)<(0))?(0):(percent)));
+			}
+			
+			if(GetTick()>=tick)
+			{
+				uint pointsCount=(isVertical?rect[3]:rect[2])/2*percent/100;
+				if(pointsCount==0&&percent>0)
+				pointsCount=1;
+				
+				if(points.length()/3!=pointsCount)
+				{
+					if(pointsCount>points.length()/3)
+					pointsCount=points.length()/3+1;
+					else
+					pointsCount=points.length()/3-1;
+					
+					points.resize(pointsCount*3);
+					for(uint i=0;i<pointsCount;i++)
+					{
+						int x,y;
+						if(isVertical)
+						{
+							x=rect[0];
+							if(fromTopOrLeft)
+							y=rect[1]+i*2;
+							else
+							y=rect[1]+rect[3]-i*2;
+						}
+						else
+						{
+							y=rect[1];
+							if(fromTopOrLeft)
+							x=rect[0]+i*2;
+							else
+							x=rect[0]+rect[2]-i*2;
+						}
+						points[i*3+0]=x;
+						points[i*3+1]=y;
+						points[i*3+2]=color;
+					}
+				}
+				tick=GetTick()+(35);
+			}
+			
+			if(points.length()>0)
+			DrawPrimitive((0),points);
+		}
+		
+		void OnConstruct()override
+		{
+			SetPosition(197,0);
+		}
+	}
+	
+	class AmmoLine:GUIPanel
+	{
+		int[]Points;
+		uint CurTick;
+		
+		void OnConstruct()override
+		{
+			SetSize(1,70);
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			if(__IndicatorType!=(0)&&__IndicatorType!=(2))
+			return;
+			
+			int indicatorMax=0;
+			int indicatorCur=0;
+			
+			if(item!is null)
+			{
+				if(item.GetType()==(3)&&item.Proto.Weapon_MaxAmmoCount>0)
+				{
+					indicatorMax=item.Proto.Weapon_MaxAmmoCount;
+					indicatorCur=item.AmmoCount;
+				}
+				else
+				{
+					indicatorMax=item.Proto.IndicatorMax;
+					indicatorCur=item.Indicator;
+				}
+			}
+			
+			int[]rect={AbsolutePosX,AbsolutePosY,Width,Height};
+			cast<Indicators>(Parent).DrawIndicator(rect,Points,((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xC8)&0xFF)<<8)|((0)&0xFF)))),indicatorCur,indicatorMax,CurTick,true,false);
+		}
+	}
+	
+	class DeteriorationLine:GUIPanel
+	{
+		int[]Points;
+		uint CurTick;
+		
+		void OnConstruct()override
+		{
+			SetPosition(3,0);
+			SetSize(1,70);
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			if(__IndicatorType!=(0)&&__IndicatorType!=(2))
+			return;
+			
+			int indicatorMax=0;
+			int indicatorCur=0;
+			
+			if(item!is null&&item.IsDeteriorable())
+			{
+				indicatorMax=(10000);
+				indicatorCur=item.Deterioration;
+			}
+			
+			int[]rect={AbsolutePosX,AbsolutePosY,Width,Height};
+			cast<Indicators>(Parent).DrawIndicator(rect,Points,((uint((0xFF<<24)|(((0xC8)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),indicatorCur,indicatorMax,CurTick,true,false);
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Screen _Screen();
+		_Screen.Init(null);
+		Main _Main();
+		_Main.Init(_Screen);
+		Console _Console();
+		_Console.Init(_Main);
+		ConsoleImage _ConsoleImage();
+		_ConsoleImage.Init(_Console);
+		ConsoleText _ConsoleText();
+		_ConsoleText.Init(_Console);
+		MessageBoxExtended _MessageBoxExtended();
+		_MessageBoxExtended.Init(_Main);
+		MessageBoxText _MessageBoxText();
+		_MessageBoxText.Init(_Main);
+		ExtendMessageBox _ExtendMessageBox();
+		_ExtendMessageBox.Init(_Main);
+		Filter1 _Filter1();
+		_Filter1.Init(_Main);
+		Filter2 _Filter2();
+		_Filter2.Init(_Main);
+		GameMenu _GameMenu();
+		_GameMenu.Init(_Main);
+		Inventory _Inventory();
+		_Inventory.Init(_Main);
+		SwitchItems _SwitchItems();
+		_SwitchItems.Init(_Main);
+		Skills _Skills();
+		_Skills.Init(_Main);
+		Map _Map();
+		_Map.Init(_Main);
+		Character _Character();
+		_Character.Init(_Main);
+		PipBoy _PipBoy();
+		_PipBoy.Init(_Main);
+		FixBoy _FixBoy();
+		_FixBoy.Init(_Main);
+		Combat _Combat();
+		_Combat.Init(_Main);
+		EndTurn _EndTurn();
+		_EndTurn.Init(_Combat);
+		EndCombat _EndCombat();
+		_EndCombat.Init(_Combat);
+		ActionPoints _ActionPoints();
+		_ActionPoints.Init(_Main);
+		Led _Led();
+		_Led.Init(_ActionPoints);
+		LedGreen _LedGreen();
+		_LedGreen.Init(_Led);
+		LedRed _LedRed();
+		_LedRed.Init(_Led);
+		LedYellow _LedYellow();
+		_LedYellow.Init(_Led);
+		BreakTime _BreakTime();
+		_BreakTime.Init(_Main);
+		BreakTimeLed _BreakTimeLed();
+		_BreakTimeLed.Init(_BreakTime);
+		HitPoints _HitPoints();
+		_HitPoints.Init(_Main);
+		ArmorClass _ArmorClass();
+		_ArmorClass.Init(_Main);
+		MainItemPlate _MainItemPlate();
+		_MainItemPlate.Init(_Main);
+		MainItemSlot _MainItemSlot();
+		_MainItemSlot.Init(_MainItemPlate);
+		MainItemSlotCell _MainItemSlotCell();
+		_MainItemSlotCell.Init(_MainItemSlot);
+		AmmoCount _AmmoCount();
+		_AmmoCount.Init(_MainItemSlotCell);
+		DeteriorationValue _DeteriorationValue();
+		_DeteriorationValue.Init(_MainItemSlotCell);
+		UsePic _UsePic();
+		_UsePic.Init(_MainItemSlotCell);
+		ApCost _ApCost();
+		_ApCost.Init(_MainItemSlotCell);
+		ApCostImage _ApCostImage();
+		_ApCostImage.Init(_ApCost);
+		ApCostValue _ApCostValue();
+		_ApCostValue.Init(_ApCost);
+		AimPic _AimPic();
+		_AimPic.Init(_MainItemSlotCell);
+		Indicators _Indicators();
+		_Indicators.Init(_MainItemSlotCell);
+		AmmoLine _AmmoLine();
+		_AmmoLine.Init(_Indicators);
+		DeteriorationLine _DeteriorationLine();
+		_DeteriorationLine.Init(_Indicators);
+		GUI_RegisterScreen(screenIndex,_Screen);
+	}
+}
+
+namespace Inventory
+{
+	class Inventory:GUIScreen
+	{
+		void OnConstruct()override
+		{
+			SetModal(true);
+			SetAvailableCursors(array<int>={(6),(0)});
+			SetCanMove(true,false);
+			SetSize(499,377);
+			SetBackgroundImage("art/intrface/inventory.png");
+		}
+	}
+	
+	class InvItems:GUIItemView
+	{
+		void OnConstruct()override
+		{
+			SetPosition(43,40);
+			SetCellPrototype("InvItem");
+			SetGridSize(10);
+			SetColumns(1);
+			SetUserData((0));
+			SetUseSorting(true);
+		}
+		
+		int OnCheckItem(ItemCl@item)override
+		{
+			return item.CritSlot==(0)?int(item.SortValue):-1;
+		}
+	}
+	
+	class InvItem:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetSize(70,30);
+			SetDraggable(true);
+			SetBackgroundImage("art/intrface/dummy.png",(4));
+		}
+		
+		void OnMouseDown(int button)override
+		{
+			if(button==(3)||button==(4))
+			{
+				GUIItemView@invItems=cast<GUIItemView>(Parent);
+				invItems.SetScroll(invItems.Scroll+(button==(3)?-1:1),true);
+			}
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			SetDraggable(item!is null);
+			BackgroundImage.Load(item!is null?(item.PicInv!=0?item.PicInv:item.Proto.PicInv):0);
+			SetSize(IsDragged?BackgroundImage.Width:70,IsDragged?BackgroundImage.Height:30);
+		}
+	}
+	
+	class ItemCount:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(65,27);
+			SetTextFlags((0x0010)|(0x0020));
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			uint count=1;
+			if(item!is null)
+			count=item.GetCount();
+			SetText(count>1&&!IsDragged?"x"+count:"");
+		}
+	}
+	
+	class SlotHand1:GUIItemView
+	{
+		void OnConstruct()override
+		{
+			SetPosition(155,287);
+			SetCellPrototype(".SlotItem");
+			SetGridSize(1);
+			SetUserData((1));
+		}
+		
+		int OnCheckItem(ItemCl@item)override
+		{
+			return item.CritSlot==(1)?0:-1;
+		}
+	}
+	
+	class SlotHand2:GUIItemView
+	{
+		void OnConstruct()override
+		{
+			SetPosition(246,287);
+			SetCellPrototype(".SlotItem");
+			SetGridSize(1);
+			SetUserData((2));
+		}
+		
+		int OnCheckItem(ItemCl@item)override
+		{
+			return item.CritSlot==(2)?0:-1;
+		}
+	}
+	
+	class SlotArmor:GUIItemView
+	{
+		void OnConstruct()override
+		{
+			SetPosition(155,184);
+			SetCellPrototype(".SlotItem");
+			SetGridSize(1);
+			SetUserData((3));
+		}
+		
+		int OnCheckItem(ItemCl@item)override
+		{
+			return item.CritSlot==(3)?0:-1;
+		}
+	}
+	
+	class SlotItem:GUIPanel
+	{
+		void OnConstruct()override
+		{
+			SetPosition(155,287);
+			SetSize(90,60);
+			SetDraggable(true);
+			SetBackgroundImage("art/intrface/dummy.png",(4));
+		}
+		
+		void OnResizeGrid(GUIObject@cell,uint cellIndex)override
+		{
+			SetPosition(0,0);
+		}
+		
+		void OnDrawItem(ItemCl@item,GUIObject@cell,uint cellIndex)override
+		{
+			SetDraggable(item!is null);
+			BackgroundImage.Load(item!is null?(item.PicInv!=0?item.PicInv:item.Proto.PicInv):0);
+		}
+	}
+	
+	class Chosen:GUIPanel
+	{
+		int CurDir;
+		uint LastDirChangeTick;
+		
+		void OnConstruct()override
+		{
+			SetPosition(176,35);
+			SetSize(61,98);
+		}
+		
+		void OnInit()override
+		{
+			CurDir=0;
+			LastDirChangeTick=GetTick();
+		}
+		
+		void OnDraw()override
+		{
+			uint curTick=GetTick();
+			if(curTick-LastDirChangeTick>=500)
+			{
+				LastDirChangeTick=curTick;
+				CurDir++;
+				if(CurDir>=(__MapHexagonal?6:8))
+				CurDir=0;
+			}
+			
+			CritterCl@chosen=GetChosen();
+			if(chosen!is null)
+			{
+				if(chosen.IsAnim3d())
+				{
+					float[]chaPosition(14);
+					
+					chaPosition[0]=AbsolutePosX+Width/2;
+					chaPosition[1]=AbsolutePosY+Height-10;
+					
+					chaPosition[2]=__MapCameraAngle;
+					chaPosition[3]=(__MapHexagonal?150-CurDir*60:135-CurDir*45);
+					chaPosition[4]=0.0;
+					
+					chaPosition[5]=1.0;
+					chaPosition[6]=1.0;
+					chaPosition[7]=1.0;
+					
+					chaPosition[8]=1.0;
+					
+					chaPosition[9]=0.0;
+					
+					chaPosition[10]=AbsolutePosX;
+					chaPosition[11]=AbsolutePosY;
+					chaPosition[12]=AbsolutePosX+Width;
+					chaPosition[13]=AbsolutePosY+Height;
+					DrawCritter3d(2,chosen.CrType,chosen.GetAnim1(),(1),chosen.Anim3dLayer,chaPosition,0);
+				}
+				else
+				{
+					DrawCritter2d(chosen.CrType,chosen.GetAnim1(),(1),CurDir,
+					AbsolutePosX,AbsolutePosY,AbsolutePosX+Width,AbsolutePosY+Height,false,true,0);
+				}
+			}
+		}
+	}
+	
+	import string generic_description(int descType,int&offsX,int&offsY)from"client_main";
+	
+	class Description:GUIText
+	{
+		void OnConstruct()override
+		{
+			SetPosition(299,48);
+			SetSize(145,182);
+		}
+		
+		void OnDraw()override
+		{
+			string@text=CustomCall("InvItemInfo"+(GetCurrentCursor()!=(0)?" X":""));
+			if(text=="")
+			{
+				int ox=0,oy=0;
+				
+				@text=generic_description((0),ox,oy);
+				DrawText(text,AbsolutePosX+ox,AbsolutePosY+oy,Width,Height,((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((5)),(0x0002));
+				
+				@text=generic_description((1),ox,oy);
+				DrawText(text,AbsolutePosX+ox,AbsolutePosY+oy,Width,Height,((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((5)),(0x0002));
+				
+				@text=generic_description((2),ox,oy);
+				DrawText(text,AbsolutePosX+ox,AbsolutePosY+oy,Width,Height,((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((5)),(0x0002));
+				
+				@text=generic_description((3),ox,oy);
+				DrawText(text,AbsolutePosX+ox,AbsolutePosY+oy,Width,Height,((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((5)),(0x0002));
+			}
+			else
+			{
+				DrawText(text,AbsolutePosX,AbsolutePosY,Width,Height,((uint((0xFF<<24)|(((60)&0xFF)<<16)|(((248)&0xFF)<<8)|((0)&0xFF)))),((5)),0);
+			}
+		}
+	}
+	
+	class ScrollUp:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(134,42);
+			SetSize(22,23);
+			SetBackgroundImage("art/intrface/inv_scr_up_normal.png");
+			SetPressedImage("art/intrface/inv_scr_up_pressed.png");
+			SetDisabledImage("art/intrface/inv_scr_up_disabled.png");
+		}
+		
+		void OnDraw()override
+		{
+			GUIItemView@invItems=cast<GUIItemView>(Parent.Find("InvItems",false));
+			SetCondition(invItems.CheckScrollAvailability(invItems.Scroll-1));
+		}
+		
+		void OnLMousePressed()override
+		{
+			GUIItemView@invItems=cast<GUIItemView>(Parent.Find("InvItems",false));
+			invItems.SetScroll(invItems.Scroll-1,true);
+		}
+	}
+	
+	class ScrollDown:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(134,66);
+			SetSize(22,23);
+			SetBackgroundImage("art/intrface/inv_scr_dn_normal.png");
+			SetPressedImage("art/intrface/inv_scr_dn_pressed.png");
+			SetDisabledImage("art/intrface/inv_scr_dn_disabled.png");
+		}
+		
+		void OnDraw()override
+		{
+			GUIItemView@invItems=cast<GUIItemView>(Parent.Find("InvItems",false));
+			SetCondition(invItems.CheckScrollAvailability(invItems.Scroll+1));
+		}
+		
+		void OnLMousePressed()override
+		{
+			GUIItemView@invItems=cast<GUIItemView>(Parent.Find("InvItems",false));
+			invItems.SetScroll(invItems.Scroll+1,true);
+		}
+	}
+	
+	class Close:GUIButton
+	{
+		void OnConstruct()override
+		{
+			SetPosition(433,324);
+			SetSize(26,26);
+			SetPressedImage("art/intrface/inv_close_dn.png");
+		}
+		
+		void OnLMouseClick()override
+		{
+			HideScreen();
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Inventory _Inventory();
+		_Inventory.Init(null);
+		InvItems _InvItems();
+		_InvItems.Init(_Inventory);
+		InvItem _InvItem();
+		_InvItem.Init(_InvItems);
+		ItemCount _ItemCount();
+		_ItemCount.Init(_InvItem);
+		SlotHand1 _SlotHand1();
+		_SlotHand1.Init(_Inventory);
+		SlotHand2 _SlotHand2();
+		_SlotHand2.Init(_Inventory);
+		SlotArmor _SlotArmor();
+		_SlotArmor.Init(_Inventory);
+		SlotItem _SlotItem();
+		_SlotItem.Init(_Inventory);
+		Chosen _Chosen();
+		_Chosen.Init(_Inventory);
+		Description _Description();
+		_Description.Init(_Inventory);
+		ScrollUp _ScrollUp();
+		_ScrollUp.Init(_Inventory);
+		ScrollDown _ScrollDown();
+		_ScrollDown.Init(_Inventory);
+		Close _Close();
+		_Close.Init(_Inventory);
+		GUI_RegisterScreen(screenIndex,_Inventory);
+	}
+}
+
+namespace Cursor
+{
+	class Screen:GUIScreen
+	{
+		void OnConstruct()override
+		{
+			SetCanMove(true,false);
+		}
+	}
+	
+	import uint GetActiveItemAttackDistantion(CritterCl&cr)from"parameters";
+	import int to_hit(CritterCl&chosen,CritterCl&target,ProtoItem&weapon,uint8 weaponMode)from"client_main";
+	
+	class Cursor:GUIPanel
+	{
+		Sprite CursorDefault;
+		Sprite CursorHand;
+		Sprite CursorWait;
+		Sprite CursorAttack;
+		Sprite CursorUseItem;
+		Sprite CursorUseSkill;
+		Sprite[]CursorMoveScreen;
+		
+		void OnConstruct()override
+		{
+		}
+		
+		void OnInit()override
+		{
+			CursorDefault.Load("art/intrface/cursor_default.png");
+			CursorHand.Load("art/intrface/cursor_hand.png");
+			CursorWait.Load("art/intrface/cursor_wait.png");
+			CursorAttack.Load("art/intrface/cursor_attack.png");
+			CursorUseItem.Load("art/intrface/cursor_use_item.png");
+			CursorUseSkill.Load("art/intrface/cursor_use_skill.png");
+			CursorMoveScreen.resize(8);
+			CursorMoveScreen[0].Load("art/intrface/cursor_move_screen_u.png");
+			CursorMoveScreen[1].Load("art/intrface/cursor_move_screen_ur.png");
+			CursorMoveScreen[2].Load("art/intrface/cursor_move_screen_r.png");
+			CursorMoveScreen[3].Load("art/intrface/cursor_move_screen_dr.png");
+			CursorMoveScreen[4].Load("art/intrface/cursor_move_screen_d.png");
+			CursorMoveScreen[5].Load("art/intrface/cursor_move_screen_dl.png");
+			CursorMoveScreen[6].Load("art/intrface/cursor_move_screen_l.png");
+			CursorMoveScreen[7].Load("art/intrface/cursor_move_screen_ul.png");
+		}
+		
+		void OnDraw()override
+		{
+			if(__HideCursor)
+			return; 
+			
+			int cursor=GetCurrentCursor();
+			if(cursor==(5))
+			{
+				CursorWait.Draw(__MouseX,__MouseY,0,0,0,0);
+				return;
+			} 
+			
+			bool hasMouseScroll=true;
+			if(__ScrollMouseLeft&&__ScrollMouseUp)
+			CursorMoveScreen[7].Draw(__MouseX,__MouseY,0,0,-1,-1);
+			else if(__ScrollMouseRight&&__ScrollMouseUp)
+			CursorMoveScreen[1].Draw(__MouseX,__MouseY,0,0,1,-1);
+			else if(__ScrollMouseLeft&&__ScrollMouseDown)
+			CursorMoveScreen[5].Draw(__MouseX,__MouseY,0,0,-1,1);
+			else if(__ScrollMouseRight&&__ScrollMouseDown)
+			CursorMoveScreen[3].Draw(__MouseX,__MouseY,0,0,1,1);
+			else if(__ScrollMouseLeft)
+			CursorMoveScreen[6].Draw(__MouseX,__MouseY,0,0,-1,0);
+			else if(__ScrollMouseRight)
+			CursorMoveScreen[2].Draw(__MouseX,__MouseY,0,0,1,0);
+			else if(__ScrollMouseUp)
+			CursorMoveScreen[0].Draw(__MouseX,__MouseY,0,0,0,-1);
+			else if(__ScrollMouseDown)
+			CursorMoveScreen[4].Draw(__MouseX,__MouseY,0,0,0,1);
+			else
+			hasMouseScroll=false;
+			if(hasMouseScroll)
+			return; 
+			
+			if(cursor==(3))
+			{
+				CursorAttack.Draw(__MouseX,__MouseY,0,0,0,0);
+				
+				CritterCl@chosen=GetChosen();
+				if(chosen is null)
+				return;
+				
+				CritterCl@cr=GetMonitorCritter(__MouseX,__MouseY,false);
+				if(cr is null||cr is chosen)
+				return;
+				
+				uint attackDist=GetActiveItemAttackDistantion(chosen);
+				if(attackDist==0)
+				return;
+				
+				bool trace=false;
+				CritterCl@[]critters;
+				GetCrittersPath(chosen.HexX,chosen.HexY,cr.HexX,cr.HexY,0.0f,attackDist,(0x0F),critters);
+				for(uint i=0;i<critters.length();i++)
+				{
+					if(critters[i].Id==cr.Id)
+					{
+						trace=true;
+						break;
+					}
+				}
+				if(!trace)
+				return;
+				
+				uint8 mode=0;
+				int hit=to_hit(chosen,cr,chosen.GetSlotProto((1),mode),mode);
+				if(hit==0)
+				return;
+				
+				DrawText(hit+"%",__MouseX+6,__MouseY+6,100,100,((uint((0xFF<<24)|(((0xC8)&0xFF)<<16)|(((0)&0xFF)<<8)|((0)&0xFF)))),((5)),0);
+			}
+			else if(cursor==(2))
+			{
+				CursorUseItem.Draw(__MouseX,__MouseY,0,0,0,0);
+			}
+			else if(cursor==(4))
+			{
+				CursorUseSkill.Draw(__MouseX,__MouseY,0,0,0,0);
+			}
+			else if(cursor==(1))
+			{
+				uint16 hx,hy;
+				if(!GetMonitorHex(__MouseX,__MouseY,hx,hy,false))
+				CursorDefault.Draw(__MouseX,__MouseY,0,0,-1,-1);
+			}
+			else if(cursor==(0))
+			{
+				CursorDefault.Draw(__MouseX,__MouseY,0,0,-1,-1);
+			}
+			else if(cursor==(6))
+			{
+				CustomCall("CurDrawHand");
+			}
+			else
+			{
+				CursorDefault.Draw(__MouseX,__MouseY,0,0,-1,-1);
+			}
+		}
+	}
+	
+	class LMenu:GUIPanel
+	{
+		void OnConstruct()override
+		{
+		}
+	}
+	
+	class MenuSlots:GUIGrid
+	{
+		void OnConstruct()override
+		{
+		}
+	}
+	
+	class MenuSlot:GUIPanel
+	{
+		void OnConstruct()override
+		{
+		}
+	}
+	
+	void Init(int screenIndex)
+	{
+		Screen _Screen();
+		_Screen.Init(null);
+		Cursor _Cursor();
+		_Cursor.Init(_Screen);
+		LMenu _LMenu();
+		_LMenu.Init(_Screen);
+		MenuSlots _MenuSlots();
+		_MenuSlots.Init(_LMenu);
+		MenuSlot _MenuSlot();
+		_MenuSlot.Init(_MenuSlots);
+		GUI_RegisterScreen(screenIndex,_Screen);
+	}
+}
