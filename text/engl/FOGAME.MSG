@@ -163,6 +163,7 @@
 
 {13370001}{}{Player name visiblity toggled.}
 {13370002}{}{Scroll Lock toggled.}
+{13370003}{}{You light a flare. It burns bright. And hot.}
 
 {260}{}{Zoom %d %%}
 {265}{}{Game paused}

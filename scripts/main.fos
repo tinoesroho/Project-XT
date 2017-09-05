@@ -5,6 +5,7 @@
 #include "_npc_pids.fos"
 #include "_animation.fos"
 #include "teams_table.fos"
+#include "item_flare.fos"
 
 // Imports
 import void InitializeGame() from "config";
@@ -399,7 +400,48 @@ bool critter_use_item( Critter& cr, Item& item, Critter@ targetCr, Item@ targetI
             EditRadioSettings( cr, item );
         return true;
     }
+	// Flare
+	if((useOnSelf) && item.GetProtoId() == PID_FLARE)
+	{
+	uint old_pid = item.GetProtoId();
+    _SubItem(item, 1);
+	
+	Map@ map = cr.GetMap();
+    if(valid(map) && LLVAR_is_encounter == 1)
+    {
+	Location@ loc = map.GetLocation();
+			if(loc.Visible!=true) 
+				loc.Visible = true;
+				    cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, STR_LIGHT_FLARE );
+			//loc.Color = COLOR_CHANGE_ALPHA(COLOR_RGB(0xC8,0,0), 80);
+	}
 
+    uint new_pid = 0;
+    switch(old_pid)
+    {
+    case PID_FLARE:
+        new_pid = PID_ACTIVE_FLARE;
+        break;
+    default:
+        break;
+    }
+
+    if(new_pid > 0)
+    {
+        Item@ new = _CritAddItem(cr, new_pid, 1);
+        if(valid(new))
+        {
+                cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, STR_LIGHT_FLARE );
+            CreateTimeEvent((REAL_MINUTE(Random(120, 120))),
+                            "e_DeleteFlare", new.Id, true);
+            return(true);
+        }
+    }
+    else
+        Log("Invalid new flare pid <" + new_pid + ">");
+
+    return(false);
+	}
     // Book reading
     if( useOnSelf && IsReadableBook( pid ) )
     {
@@ -1069,6 +1111,9 @@ void critter_finish( Critter& cr, bool toDelete )
 // Call every __CritterIdleTick time.
 void critter_idle( Critter& cr )
 {
+	if (cr.IsDead() && cr.IsPlayer)
+		cr.Timeout[ TO_SNEAK] = 0;
+
     if( cr.IsDead() && cr.Stat[ ST_REPLICATION_TIME ] >= 0 && cr.Timeout[ TO_REPLICATION ] == 0 )
         ReplicateCritter( cr );
 

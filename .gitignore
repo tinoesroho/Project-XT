@@ -8,6 +8,12 @@ FOnlineServer
 maps
 save
 
+# Compiled code
+*.fosp
+*.fosb
+scripts/*.fosb
+scripts/*.fosp
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -55,3 +61,6 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.fosp
+*.fosb
+*.fosb
