@@ -3091,6 +3091,7 @@ void render_iface(uint layer)
 				string NameStr;
 				uint NameColor;
 				uint ContourColor;
+				uint HP_color;
 				int hp_proc;
 				ItemCl@weapon=critters[i].GetItem(0,(1));
 				ItemCl@armor=critters[i].GetItem(0,(3)); 
@@ -3098,6 +3099,7 @@ void render_iface(uint layer)
 				if((@critters[i]!=null)&&critters[i].IsLife())
 				{
 					hp_proc=critters[i].Stat[(72)]*100/critters[i].Stat[(7)];
+					
 					critters[i].NameOnHead=name+"\n"+hp_proc+"%";
 					if(hp_proc<1)
 					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0xAB)&0xFF)<<16)|(((0xAB)&0xFF)<<8)|((0xAB)&0xFF))))+" "+hp_proc+"%";
@@ -3111,7 +3113,7 @@ void render_iface(uint layer)
 					critters[i].NameOnHead=name+"\n"+"|"+((uint((0xFF<<24)|(((0)&0xFF)<<16)|(((0xFF)&0xFF)<<8)|((0)&0xFF))))+" "+hp_proc+"%";
 				}
 				else if((@critters[i]!=null)&&!critters[i].IsLife()){
-					critters[i].NameOnHead=name+" (dead)";
+					critters[i].NameOnHead=name+"\n (dead)";
 				}
 			}
 			
@@ -3997,6 +3999,36 @@ string item_description(ItemCl&item,int lookType)
 	if(item.Lexems!="")
 	return FormatTags(result,item.Lexems);
 	return result;
+}  
+
+bool EndTurnBasedTurn()
+{
+	if(__ConsoleActive)
+	return false;
+	
+	CritterCl@chosen=GetChosen();
+	if((@chosen!=null)&&chosen.IsTurnBasedTurn())
+	{
+		RunServerScriptUnsafe("combat@unsafe_EndTurnBasedTurn",0,0,0,null,null);
+		return true;
+	}
+	
+	return false;
+}
+
+bool EndTurnBasedCombat()
+{
+	if(__ConsoleActive)
+	return false;
+	
+	CritterCl@chosen=GetChosen();
+	if((@chosen!=null)&&chosen.IsTurnBasedTurn())
+	{
+		RunServerScriptUnsafe("combat@unsafe_EndTurnBasedCombat",0,0,0,null,null);
+		return true;
+	}
+	
+	return false;
 }  
 
 string critter_description(CritterCl&cr,int lookType)

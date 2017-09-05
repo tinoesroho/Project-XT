@@ -183,6 +183,7 @@ void render_iface( uint layer )
 				string NameStr;
 				uint   NameColor;
 				uint   ContourColor;
+				uint HP_color;
 				int hp_proc;
 				ItemCl@ weapon= _CritGetItemHand(critters[i]);
 				ItemCl@ armor=_CritGetItemArmor(critters[i]);
@@ -191,6 +192,7 @@ void render_iface( uint layer )
 				if(valid(critters[i]) && critters[i].IsLife())
 				{
 					hp_proc = critters[i].Stat[ST_CURRENT_HP] * 100 / critters[i].Stat[ST_MAX_LIFE]; 
+					// notworking: HP_color = COLOR_RGB(0xff - (0xff * hp_proc / 5, (0xff * hp_proc / 5, 0));
 					critters[i].NameOnHead = name + "\n" + hp_proc + "%" ;
 					if (hp_proc < 1)
 						critters[i].NameOnHead = name + "\n" + "|" + COLOR_LGRAY + " " + hp_proc + "%" ;
@@ -1166,6 +1168,38 @@ string item_description( ItemCl& item, int lookType )
     if( item.Lexems != "" )
         return FormatTags( result, item.Lexems );
     return result;
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// Combat hotkeys by wladimiiir
+
+bool EndTurnBasedTurn()
+{
+   if(__ConsoleActive)
+      return false;
+
+   CritterCl@ chosen = GetChosen();
+   if(valid(chosen) && chosen.IsTurnBasedTurn())
+   {
+      RunServerScriptUnsafe( "combat@unsafe_EndTurnBasedTurn", 0, 0, 0, null, null );
+      return true;
+   }
+   
+   return false;
+}
+
+bool EndTurnBasedCombat()
+{
+   if(__ConsoleActive)
+      return false;
+
+   CritterCl@ chosen = GetChosen();
+   if(valid(chosen) && chosen.IsTurnBasedTurn())
+   {
+      RunServerScriptUnsafe( "combat@unsafe_EndTurnBasedCombat", 0, 0, 0, null, null );
+      return true;
+   }
+
+   return false;
 }
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////

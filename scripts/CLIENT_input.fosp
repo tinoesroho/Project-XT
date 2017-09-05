@@ -2843,6 +2843,8 @@ shared class GUIItemView:GUIGrid
 
 import void TryExit()from"gui_screens";
 import void NextCursor()from"gui_screens";
+import bool EndTurnBasedTurn()from"client_main";
+import bool EndTurnBasedCombat()from"client_main";
 
 bool[]KeyPressed;
 bool[]MousePressed; 
@@ -2931,7 +2933,12 @@ void input_lost()
 	for(uint i=0,j=MousePressed.length();i<j;i++)
 	MousePressed[i]=false; 
 	
-	GUI_EngineCallback_InputLost(); 
+	GUI_EngineCallback_InputLost();
+	
+	if(__GmapWait&&__GmapActive)
+	{
+		PlaySound("BIGWIN1.ACM");
+	}
 	
 	HandlePressedKeys();
 } 
@@ -2946,6 +2953,15 @@ bool HandleHotkeys(uint8 key)
 	
 	bool isHotkey=true;
 	bool inputFocused=(cast<GUITextInput>(GUI_GetFocusedObject())!is null||__ConsoleActive||GUI_IsConsoleActive());
+	
+	if(!IsAltDown()&&!IsShiftDown()&&!IsCtrlDown()&&key==0x39)
+	if(EndTurnBasedTurn())
+	return true;
+	
+	if(!IsAltDown()&&!IsShiftDown()&&IsCtrlDown()&&key==0x39)
+	if(EndTurnBasedCombat())
+	return true;
+	
 	if(!IsCtrlDown()&&!IsAltDown()&&!IsShiftDown())
 	{
 		switch(key)

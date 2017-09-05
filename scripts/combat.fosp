@@ -899,6 +899,20 @@ import void QuakeScreen(Map&map)from"effects";
 import uint GetSmokePenalty(Map@map,Critter@attacker,Critter@target)from"smoke_grenade";
 import void SmokeBlast(Map&map,uint16 hexX,uint16 hexY,uint16 smokePid,uint ownerId)from"smoke_grenade";
 
+void unsafe_EndTurnBasedTurn(Critter&player,int,int,int,string@,int[]@)
+{
+	Map@map=player.GetMap();
+	if(!(@map!=null))
+	return;
+	
+	if(map.IsTurnBased()&&(player.Stat[(75)]>0||player.Stat[(88)]>0))
+	{
+		player.ModeBase[(515)]=1;
+		player.StatBase[(75)]=0;
+		player.StatBase[(88)]=0;
+	}
+}
+
 class AttackStruct
 {
 	Critter@Attacker;

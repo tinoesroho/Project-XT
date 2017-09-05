@@ -4,6 +4,8 @@
 
 import void TryExit() from "gui_screens";
 import void NextCursor() from "gui_screens";
+import bool EndTurnBasedTurn() from "client_main";
+import bool EndTurnBasedCombat() from "client_main";
 
 bool[] KeyPressed;
 bool[] MousePressed;
@@ -109,7 +111,7 @@ void input_lost() // Engine callback
     // GUI handler
     GUI_EngineCallback_InputLost();
 	
-	if (__ GmapWait && __GmapActive) 
+	if (__GmapWait && __GmapActive) 
 	{ 
 		PlaySound ( "BIGWIN1.ACM"); 
 	}
@@ -129,7 +131,16 @@ bool HandleHotkeys( uint8 key )
     // Hotkeys
     bool isHotkey = true;
     bool inputFocused = ( cast< GUITextInput >( GUI_GetFocusedObject() ) !is null || __ConsoleActive || GUI_IsConsoleActive() );
-    if( !IsCtrlDown() && !IsAltDown() && !IsShiftDown() )
+    
+	if(!IsAltDown() && !IsShiftDown() && !IsCtrlDown() && key == DIK_SPACE)
+		if(EndTurnBasedTurn())
+			return true;
+
+	if(!IsAltDown() && !IsShiftDown() && IsCtrlDown() && key == DIK_SPACE)
+		if(EndTurnBasedCombat())
+			return true;	
+	
+	if( !IsCtrlDown() && !IsAltDown() && !IsShiftDown() )
     {
         switch( key )
         {
