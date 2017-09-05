@@ -432,7 +432,7 @@ bool critter_use_item( Critter& cr, Item& item, Critter@ targetCr, Item@ targetI
         if(valid(new))
         {
                 cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, STR_LIGHT_FLARE );
-            CreateTimeEvent((REAL_MINUTE(Random(120, 120))),
+            CreateTimeEvent(FlareDelay,
                             "e_DeleteFlare", new.Id, true);
             return(true);
         }
@@ -1111,9 +1111,10 @@ void critter_finish( Critter& cr, bool toDelete )
 // Call every __CritterIdleTick time.
 void critter_idle( Critter& cr )
 {
-	if (cr.IsDead() && cr.IsPlayer)
-		cr.Timeout[ TO_SNEAK] = 0;
-
+	if ( cr.IsDead ())
+	{
+	cr.TimeoutBase[ TO_SNEAK ] = 0;
+	}
     if( cr.IsDead() && cr.Stat[ ST_REPLICATION_TIME ] >= 0 && cr.Timeout[ TO_REPLICATION ] == 0 )
         ReplicateCritter( cr );
 
