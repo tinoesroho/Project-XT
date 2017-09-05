@@ -172,6 +172,7 @@ bool HandleHotkeys( uint8 key )
 
         case DIK_F6:
             __ShowPlayerNames = !__ShowPlayerNames;
+			Message( MSG_GAME( STR_SHOW_PLAYER_NAMES ) );
             break;
         case DIK_F7:
             if( __DebugInfo )
@@ -184,6 +185,7 @@ bool HandleHotkeys( uint8 key )
             __ScrollMouseLeft = false;
             __ScrollMouseDown = false;
             __ScrollMouseUp = false;
+			Message( MSG_GAME( STR_MOUSE_SCROLL ) );
             break;
 
         case DIK_F9:

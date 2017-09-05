@@ -161,6 +161,9 @@
 {253}{}{Log saved.}
 {254}{}{Log not saved.}
 
+{13370001}{}{Player name visiblity toggled.}
+{13370002}{}{Scroll Lock toggled.}
+
 {260}{}{Zoom %d %%}
 {265}{}{Game paused}
 
