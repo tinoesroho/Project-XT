@@ -27,6 +27,8 @@
 # define FLAREGROUND_AGE_MAX    (120)
 #endif
 
+# define FlareDelay (Random(FLARE_AGE_MIN, FLARE_AGE_MAX) * 60 * 1000)
+
 void _FlareInit(Item& item, bool firstTime)
 {
     item.SetEvent(ITEM_EVENT_USE, "_Used");
@@ -36,8 +38,7 @@ void _GroundFlareInit(Item& item, bool firstTime)
 {
     if(firstTime)
     {
-        ;
-		CreateTimeEvent((REAL_MINUTE(Random(FLAREGROUND_AGE_MIN, FLAREGROUND_AGE_MAX))),
+		CreateTimeEvent(FlareDelay,
                         "e_DeleteFlare", item.Id, true);
     }
 }
@@ -72,7 +73,7 @@ bool _Used(Item& item, Critter& crit, Critter@ onCritter, Item@ onItem, Scenery@
         if(valid(new))
         {
             crit.SayMsg(SAY_NETMSG, TEXTMSG_TEXT, STR_LIGHT_FLARE);
-            CreateTimeEvent((REAL_MINUTE(Random(FLARE_AGE_MIN, FLARE_AGE_MAX))),
+            CreateTimeEvent(FlareDelay,
                             "e_DeleteFlare", new.Id, true);
             return(true);
         }
@@ -84,7 +85,8 @@ bool _Used(Item& item, Critter& crit, Critter@ onCritter, Item@ onItem, Scenery@
 }
 
 uint e_DeleteFlare(array<uint>@ data)
-{
+{	
+	
     if(data.length() < 1)
     {
         Log("Flare removing fail: !id");
